@@ -144,6 +144,11 @@ ENV/
 env.bak/
 venv.bak/
 
+# Config and credentials folder
+config/credentials.json
+config/google_photos_creds.pickle
+config/db_config.json
+config/
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -205,3 +210,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+downloads/
+credentials.json
+ml/data
