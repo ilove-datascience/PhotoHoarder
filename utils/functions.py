@@ -91,10 +91,24 @@ async def get_album_id_from_db(chat_id: int) -> str:
 
 
 async def getphotos(update: Update, context: ContextTypes.DEFAULT_TYPE, debug: bool, sort: bool = False) -> None:
-	
-	# get sender username
-	sender = update.message.from_user.username
+    
+	# normalize message and sender information safely (updates may lack `message`)
+	message = update.effective_message
+
+	sender = "unknown"
+	if message and getattr(message, "from_user", None):
+		sender = getattr(message.from_user, "username", None) or getattr(message.from_user, "first_name", "unknown")
+	elif getattr(update, "callback_query", None) and getattr(update.callback_query, "from_user", None):
+		sender = getattr(update.callback_query.from_user, "username", None) or getattr(update.callback_query.from_user, "first_name", "unknown")
+	elif getattr(update, "effective_user", None):
+		sender = getattr(update.effective_user, "username", None) or getattr(update.effective_user, "first_name", "unknown")
+
 	print(f"Received a message from {sender}")
+
+	# ensure we have a chat to operate on
+	if not getattr(update, "effective_chat", None):
+		print("Update has no effective chat; ignoring.")
+		return
 
 	# get album ID for this chat
 	chat_id = update.effective_chat.id
@@ -110,14 +124,15 @@ async def getphotos(update: Update, context: ContextTypes.DEFAULT_TYPE, debug: b
 		return
 
 	# check if message contains a photo, if so save and upload it
-	if update.message.photo:
+	if message and message.photo:
 		# get photo obj
-		photo = update.message.photo[-1]
+		photo = message.photo[-1]
 		file_id = photo.file_id  # get file obj id
 		file = await photo.get_file()
 		photo_bytes = await file.download_as_bytearray()
 
-		print((f'{update.message.from_user.first_name} sent a photo with file_id: {file_id}'))
+		first_name = getattr(message.from_user, "first_name", "unknown") if message and getattr(message, "from_user", None) else "unknown"
+		print((f'{first_name} sent a photo with file_id: {file_id}'))
 
 		if sort:
 			try:
@@ -170,12 +185,13 @@ async def getphotos(update: Update, context: ContextTypes.DEFAULT_TYPE, debug: b
 			await debug_send(context, chat_id, f"Failed to upload photo: {str(e)}", debug)
 			print(f"Error uploading photo to album: {e}")
 
-	if update.message.video:
-		video = update.message.video
+	if message and message.video:
+		video = message.video
 		file_id = video.file_id
 		file = await video.get_file()
 		video_bytes = await file.download_as_bytearray()
-		print((f'{update.message.from_user.first_name} sent a video with file_id: {file_id}'))
+		first_name = getattr(message.from_user, "first_name", "unknown") if message and getattr(message, "from_user", None) else "unknown"
+		print((f'{first_name} sent a video with file_id: {file_id}'))
 		
 		try:
 			# Upload to Google Photos album
@@ -209,8 +225,8 @@ async def getphotos(update: Update, context: ContextTypes.DEFAULT_TYPE, debug: b
 			print(f"Error uploading video to album: {e}")
 		
 	# mock reply for now
-	elif update.message.text:
-		original_text = update.message.text
+	elif message and getattr(message, "text", None):
+		original_text = message.text
 		print(f"Received text message: {original_text}")
 		await debug_send(context, chat_id, f"SYBAUUUUU {sender.upper()}", debug)
 

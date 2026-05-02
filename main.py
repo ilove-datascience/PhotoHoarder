@@ -21,9 +21,26 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	await getphotos(update, context, debug=DEBUG, sort=SORT)
 
 
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+	# Application-level error handler to catch exceptions from handlers
+	try:
+		print("Exception in handler:", context.error)
+		# try to notify the chat if available
+		if getattr(update, "effective_chat", None):
+			try:
+				await context.bot.send_message(chat_id=update.effective_chat.id, text="⚠️ An internal error occurred. The maintainers have been notified.")
+			except Exception as ex:
+				print("Failed to send error notification to chat:", ex)
+	except Exception as e:
+		print("Error in error_handler:", e)
+
+
 def main():
 	app = Application.builder().token(TOKEN).build()
 	app.add_handler(CommandHandler("start", start))
+
+	# register a global error handler so uncaught exceptions are surfaced and handled
+	app.add_error_handler(error_handler)
 	
 	app.add_handler(
 		MessageHandler(
