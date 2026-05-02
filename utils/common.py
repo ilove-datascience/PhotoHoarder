@@ -18,7 +18,7 @@ DEFAULT_DB_CONFIG = {
 	"host": "localhost",
 	"user": "root",
 	"password": "",
-	"database": "photohoarder"
+	"database": "photohoarderlalalal"
 }
 
 
