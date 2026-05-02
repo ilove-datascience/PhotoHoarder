@@ -16,7 +16,7 @@ from .google_utils import upload_to_album, CredentialRefreshError
 MODEL_PATH = Path("model.pth")
 DOWNLOADS_DIR = Path("downloads")
 IMG_SIZE = 224
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 CLASS_NAMES = ["discard", "keep"]
 
 INFER_TRANSFORMS = transforms.Compose([
