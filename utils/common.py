@@ -31,7 +31,7 @@ def _load_db_config():
 		"host": os.getenv("MYSQLHOST", DEFAULT_DB_CONFIG["host"]),
 		"user": os.getenv("MYSQLUSER", DEFAULT_DB_CONFIG["user"]),
 		"password": os.getenv("MYSQL_ROOT_PASSWORD", DEFAULT_DB_CONFIG["password"]),
-		"database": os.getenv("MYSQLDATABASE", DEFAULT_DB_CONFIG["database"]),
+		"database": os.getenv("MYSQL_DATABASE", DEFAULT_DB_CONFIG["database"]),
 	}
 
 
