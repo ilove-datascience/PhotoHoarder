@@ -4,30 +4,43 @@ from mysql.connector import Error
 from io import BytesIO
 from pathlib import Path
 
-import torch
-import torchvision.transforms as transforms
-import timm
 from PIL import Image
 
 from .common import debug_send, _get_db_connection, get_group_admin_creds_filename
 from .google_utils import upload_to_album, CredentialRefreshError
 
+try:
+	import torch
+	import torchvision.transforms as transforms
+	import timm
+	TORCH_AVAILABLE = True
+except ModuleNotFoundError:
+	torch = None
+	transforms = None
+	timm = None
+	TORCH_AVAILABLE = False
+
 
 MODEL_PATH = Path("model.pth")
 DOWNLOADS_DIR = Path("downloads")
 IMG_SIZE = 224
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda" if TORCH_AVAILABLE and torch.cuda.is_available() else "cpu") if TORCH_AVAILABLE else "cpu"
 CLASS_NAMES = ["discard", "keep"]
 
-INFER_TRANSFORMS = transforms.Compose([
-	transforms.Resize((IMG_SIZE, IMG_SIZE)),
-	transforms.ToTensor(),
-])
+INFER_TRANSFORMS = None
+if TORCH_AVAILABLE:
+	INFER_TRANSFORMS = transforms.Compose([
+		transforms.Resize((IMG_SIZE, IMG_SIZE)),
+		transforms.ToTensor(),
+	])
 
 _model = None
 
 
 def _get_sort_model():
+	if not TORCH_AVAILABLE:
+		raise RuntimeError("Photo sorting is unavailable because torch/timm are not installed.")
+
 	global _model
 	if _model is not None:
 		return _model
@@ -49,6 +62,9 @@ def _get_sort_model():
 
 
 def _predict_photo(photo_bytes: bytes):
+	if not TORCH_AVAILABLE:
+		raise RuntimeError("Photo sorting is unavailable because torch/timm are not installed.")
+
 	model = _get_sort_model()
 	image = Image.open(BytesIO(photo_bytes)).convert("RGB")
 	tensor = INFER_TRANSFORMS(image).unsqueeze(0).to(DEVICE)
@@ -117,6 +133,15 @@ async def getphotos(update: Update, context: ContextTypes.DEFAULT_TYPE, debug: b
 	if not album_id:
 		await debug_send(context, chat_id, "No album found for this chat. Please use /start first.", debug)
 		return
+
+	if sort and not TORCH_AVAILABLE:
+		await debug_send(
+			context,
+			chat_id,
+			"Photo sorting is disabled because torch/timm are not installed in this environment.",
+			debug,
+		)
+		sort = False
 
 	admin_creds_filename = await get_group_admin_creds_filename(group_id)
 	if not admin_creds_filename:

@@ -136,6 +136,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
 .envrc
 .venv
 env/
@@ -146,9 +147,11 @@ venv.bak/
 
 # Config and credentials folder
 config/credentials.json
-config/google_photos_creds.pickle
+config/google_photos_creds_*.pickle
 config/db_config.json
 config/
+data/
+*.json
 # Spyder project settings
 .spyderproject
 .spyproject

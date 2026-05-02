@@ -1,8 +1,10 @@
+import os
 import pickle
 import threading
 from pathlib import Path
 from typing import Optional
 
+from dotenv import load_dotenv
 from telegram import Update
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -12,13 +14,43 @@ SCOPES = [
     "https://www.googleapis.com/auth/photoslibrary.appendonly",
     "https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata",
 ]
-CREDS_DIR = Path("config")
-OAUTH_TIMEOUT = 60  # 1 minute timeout for OAuth
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
+
+
+def get_path(env_name: str, default_path: str | Path) -> Path:
+    """Read a path from env and resolve relative values from the repo root."""
+    value = os.getenv(env_name)
+    path = Path(value) if value else Path(default_path)
+    if not path.is_absolute():
+        path = BASE_DIR / path
+    print(f"Resolved path for {env_name}: {path}")
+
+
+    return path
+
+
+IS_RAILWAY = os.getenv("RAILWAY_ENVIRONMENT") is not None
+CREDS_DIR = get_path("CREDS_DIR", "/data" if IS_RAILWAY else BASE_DIR / "config")
+print(f"Using credential directory: {CREDS_DIR}")
+CREDS_DIR.mkdir(parents=True, exist_ok=True)
+GOOGLE_CLIENT_SECRET_PATH = get_path("GOOGLE_CLIENT_SECRET_PATH", CREDS_DIR / "client_secret.json")
+GOOGLE_TOKEN_PATH = get_path("GOOGLE_TOKEN_PATH", CREDS_DIR / "token.json")
+OAUTH_TIMEOUT = int(os.getenv("OAUTH_TIMEOUT", "60"))
 
 
 def _get_creds_filename(user_id: int, group_id: int) -> str:
 	"""Generate a credential filename for a specific user and group."""
 	return f"google_photos_creds_{user_id}_{group_id}.pickle"
+
+
+def _clear_expired_creds(user_id: int, group_id: int) -> None:
+	"""Delete expired credential file to force fresh OAuth flow."""
+	creds_filename = _get_creds_filename(user_id, group_id)
+	creds_path = CREDS_DIR / creds_filename
+	if creds_path.exists():
+		creds_path.unlink(missing_ok=True)
+		print(f"Cleared expired credentials for user {user_id}, group {group_id}")
 
 
 class OAuthTimeoutError(Exception):
@@ -31,9 +63,21 @@ class CredentialRefreshError(Exception):
 	pass
 
 
+def _resolve_client_secret_path() -> Path:
+	"""Choose the configured OAuth client secret file, with a compatibility fallback."""
+	if GOOGLE_CLIENT_SECRET_PATH.exists():
+		return GOOGLE_CLIENT_SECRET_PATH
+
+	compatibility_path = CREDS_DIR / "credentials.json"
+	if compatibility_path.exists():
+		return compatibility_path
+
+	return GOOGLE_CLIENT_SECRET_PATH
+
+
 def build_oauth_authorization_url() -> str:
 	"""Build a Google OAuth authorization link that can be shared via Telegram."""
-	flow = InstalledAppFlow.from_client_secrets_file("config/credentials.json", SCOPES)
+	flow = InstalledAppFlow.from_client_secrets_file(str(_resolve_client_secret_path()), SCOPES)
 	flow.redirect_uri = "http://localhost"
 	auth_url, _ = flow.authorization_url(access_type="offline", prompt="consent")
 	return auth_url
@@ -43,6 +87,7 @@ def _load_or_create_creds(user_id: int, group_id: int):
 	"""Load cached credentials or run full OAuth flow if cache doesn't exist."""
 	creds_filename = _get_creds_filename(user_id, group_id)
 	creds_path = CREDS_DIR / creds_filename
+	print(f"Looking for credentials at: {creds_path}")
 	
 	if creds_path.exists():
 		with open(creds_path, "rb") as token:
@@ -65,7 +110,7 @@ def _load_or_create_creds(user_id: int, group_id: int):
 		return creds
 	else:
 		# Run full OAuth flow with timeout for first-time auth
-		flow = InstalledAppFlow.from_client_secrets_file("config/credentials.json", SCOPES)
+		flow = InstalledAppFlow.from_client_secrets_file(str(_resolve_client_secret_path()), SCOPES)
 		creds_holder = {"creds": None, "error": None}
 		
 		def run_auth():
@@ -256,8 +301,10 @@ async def create_album(update: Update) -> tuple:
 		existing_album_id = result[0] if result and result[0] else None
 		print(f"Existing album ID from database for group {group_id}: {existing_album_id}")
 		if existing_album_id:
-			# Ensure credentials are present/valid for this user+group.
-			# This may trigger OAuth when needed, even if album already exists.
+			# Clear any expired credentials to force fresh OAuth flow.
+			# If the user runs /start, they want a fresh login, not to reuse a broken token.
+			_clear_expired_creds(user_id, group_id)
+			# Now load or create fresh credentials.
 			_build_photos_service(user_id, group_id)
 			existing_album_url = f"https://photos.google.com/lr/album/{existing_album_id}"
 			print(f"Album already linked for group {group_id}. Reusing album {existing_album_id}")

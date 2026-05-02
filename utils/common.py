@@ -1,5 +1,5 @@
-import json
 from pathlib import Path
+import os
 
 from telegram import Update, ForceReply, InlineKeyboardMarkup, InlineKeyboardButton, PhotoSize
 import mysql.connector
@@ -11,7 +11,9 @@ from telegram.ext import ContextTypes
 from utils.google_utils import OAuthTimeoutError, build_oauth_authorization_url, create_album
 
 
-DB_CONFIG_FILE = Path("config/db_config.json")
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
+
 DEFAULT_DB_CONFIG = {
 	"host": "localhost",
 	"user": "root",
@@ -21,20 +23,13 @@ DEFAULT_DB_CONFIG = {
 
 
 def _load_db_config():
-	"""Load database credentials from cache, or create default."""
-	if DB_CONFIG_FILE.exists():
-		try:
-			with open(DB_CONFIG_FILE, "r") as f:
-				config = json.load(f)
-			return config
-		except (json.JSONDecodeError, IOError):
-			return DEFAULT_DB_CONFIG
-	else:
-		# Create default config file for user to edit
-		with open(DB_CONFIG_FILE, "w") as f:
-			json.dump(DEFAULT_DB_CONFIG, f, indent=2)
-		print(f"Created {DB_CONFIG_FILE}. Please update it with your database credentials.")
-		return DEFAULT_DB_CONFIG
+	"""Load database credentials from environment variables."""
+	return {
+		"host": os.getenv("MYSQLHOST", DEFAULT_DB_CONFIG["host"]),
+		"user": os.getenv("MYSQLUSER", DEFAULT_DB_CONFIG["user"]),
+		"password": os.getenv("MYSQL_ROOT_PASSWORD", DEFAULT_DB_CONFIG["password"]),
+		"database": os.getenv("MYSQLDATABASE", DEFAULT_DB_CONFIG["database"]),
+	}
 
 
 def _get_db_connection():
