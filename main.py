@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 import asyncio  
 load_dotenv()
+from pathlib import Path
 logger = logging.getLogger(__name__)
 TOKEN = os.getenv("tg_token")
 from utils.functions import getphotos
@@ -36,6 +37,29 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
+	# Ensure required directories exist before starting the bot
+	def ensure_required_dirs():
+		base = Path(".")
+		required = [
+			base / "downloads",
+			base / "config",
+			base / "ml",
+			base / "ml" / "data",
+			base / "ml" / "data" / "train",
+			base / "ml" / "data" / "train" / "keep",
+			base / "ml" / "data" / "train" / "discard",
+			base / "ml" / "data" / "test",
+			base / "ml" / "data" / "test" / "keep",
+			base / "ml" / "data" / "test" / "discard",
+		]
+
+		for d in required:
+			try:
+				d.mkdir(parents=True, exist_ok=True)
+			except Exception as e:
+				print(f"Failed to create or verify directory {d}: {e}")
+
+	ensure_required_dirs()
 	app = Application.builder().token(TOKEN).build()
 	app.add_handler(CommandHandler("start", start))
 
