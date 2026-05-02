@@ -38,6 +38,25 @@ GOOGLE_CLIENT_SECRET_PATH = get_path("GOOGLE_CLIENT_SECRET_PATH", CREDS_DIR / "c
 GOOGLE_TOKEN_PATH = get_path("GOOGLE_TOKEN_PATH", CREDS_DIR / "token.json")
 OAUTH_TIMEOUT = int(os.getenv("OAUTH_TIMEOUT", "60"))
 
+# If client secret JSON provided via env, write it to the configured path (compat with run.sh)
+client_secret_env = os.getenv("GOOGLE_CLIENT_SECRET_JSON")
+if client_secret_env:
+	try:
+		if not GOOGLE_CLIENT_SECRET_PATH.exists() or GOOGLE_CLIENT_SECRET_PATH.stat().st_size == 0:
+			GOOGLE_CLIENT_SECRET_PATH.parent.mkdir(parents=True, exist_ok=True)
+			with open(GOOGLE_CLIENT_SECRET_PATH, "w", encoding="utf-8") as f:
+				f.write(client_secret_env)
+			try:
+				os.chmod(GOOGLE_CLIENT_SECRET_PATH, 0o600)
+			except Exception:
+				# chmod may not be available on Windows or some containers; ignore failures
+				pass
+			print(f"Wrote GOOGLE_CLIENT_SECRET_JSON to {GOOGLE_CLIENT_SECRET_PATH}")
+		else:
+			print(f"Client secret file already exists at {GOOGLE_CLIENT_SECRET_PATH}; not overwriting")
+	except Exception as e:
+		print(f"Failed to write GOOGLE_CLIENT_SECRET_JSON to {GOOGLE_CLIENT_SECRET_PATH}: {e}")
+
 
 def _get_creds_filename(user_id: int, group_id: int) -> str:
 	"""Generate a credential filename for a specific user and group."""
