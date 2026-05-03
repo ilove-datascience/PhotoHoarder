@@ -5,6 +5,11 @@ from typing import Optional
 from urllib.parse import urlparse
 import time
 
+# Allow HTTP for local development (http://localhost:8000)
+# In production (Railway with HTTPS), this won't affect anything
+if os.getenv("RAILWAY_ENVIRONMENT") is None:
+	os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
 from dotenv import load_dotenv
 from telegram import Update
 from googleapiclient.discovery import build
