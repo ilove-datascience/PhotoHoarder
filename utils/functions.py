@@ -5,11 +5,16 @@ from io import BytesIO
 from pathlib import Path
 import gc
 import time
+from urllib.parse import urlparse
 
 from PIL import Image
 
 from .common import debug_send, _get_db_connection, get_group_admin_creds_filename
 from .google_utils import upload_to_album, CredentialRefreshError, check_existing_album, _load_creds_by_filename
+from .google_utils import (
+	OAUTH_REDIRECT_URI,
+	OAUTH_USES_REMOTE,
+)
 
 try:
 	import torch
@@ -81,20 +86,29 @@ def _get_creds_health(creds_filename: str) -> tuple[str, str]:
 	if not creds_filename:
 		return "missing", "no admin credential file is linked to this chat"
 
+
 	try:
 		creds = _load_creds_by_filename(creds_filename)
 	except FileNotFoundError:
-		return "missing", f"credential file not found: {creds_filename}"
+		return "missing", "credential file not found"
 	except CredentialRefreshError as exc:
 		return "invalid", str(exc)
 	except Exception as exc:
 		return "error", f"failed to load credentials: {exc}"
 
 	if getattr(creds, "valid", False):
-		return "valid", f"loaded from {creds_filename}"
+		return "valid", "loaded and valid"
 
-	return "invalid", f"token loaded but not valid: {creds_filename}"
+	return "invalid", "token loaded but not valid"
 
+def _get_runtime_health() -> tuple[str, str]:
+	"""Describe whether the bot is running locally or on Railway."""
+	runtime = "Railway" if OAUTH_USES_REMOTE else "local"
+	parsed_uri = urlparse(OAUTH_REDIRECT_URI)
+	host = parsed_uri.hostname or "unknown"
+	port = parsed_uri.port
+	port_text = f":{port}" if port else ""
+	return runtime, f"callback={host}{port_text}"
 
 def _get_sort_model():
 	if not TORCH_AVAILABLE:
@@ -323,6 +337,7 @@ async def health_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 		return
 
 	chat_id = chat.id
+	runtime_status, runtime_detail = _get_runtime_health()
 	model_status, model_detail = _get_sort_model_health()
 	creds_filename = await get_group_admin_creds_filename(chat_id)
 	creds_status, creds_detail = _get_creds_health(creds_filename)
@@ -333,21 +348,22 @@ async def health_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 			album_exists = await check_existing_album(update)
 			if album_exists:
 				album_status = "available"
-				album_detail = f"album_link={album_id}"
+				#album_detail = f"album_link={album_id}"
 			else:
 				album_status = "missing or inaccessible"
-				album_detail = f"album_link={album_id or 'not set'}"
+				#album_detail = f"album_link={album_id or 'not set'}"
 		except Exception as exc:
 			album_status = "error"
-			album_detail = str(exc)
+			#album_detail = str(exc)
 	else:
 		album_status = "skipped"
-		album_detail = "credential check failed"
+		#album_detail = "credential check failed"
 
 	lines = [
 		"Health check:",
+		f"Runtime: {runtime_status} ({runtime_detail})",
 		f"Model: {model_status} ({model_detail})",
 		f"Credentials: {creds_status} ({creds_detail})",
-		f"Album: {album_status} ({album_detail})",
+		f"Album: {album_status}",
 	]
 	await context.bot.send_message(chat_id=chat_id, text="\n".join(lines))
