@@ -14,7 +14,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, ContextTyp
 
 from utils.functions import getphotos, health_check
 from utils import google_utils
-from utils.common import start, _get_db_connection, store_admin_creds
+from utils.common import start, _get_db_connection, store_admin_creds, ADMIN_USER
 
 logger = logging.getLogger(__name__)
 TOKEN = os.getenv("tg_token")
@@ -24,9 +24,7 @@ WEB_SERVER_STARTED = False
 
 DEBUG = False # degug flag to control debug messages, set to False in production
 SORT = True # sort photos to keep vs discard, set to False to keep all photos without sorting
-global ADMIN_USER
 
-ADMIN_USER = int(os.getenv("ADMIN_USER_ID", "0")) if os.getenv("ADMIN_USER_ID") else None
 
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # handles all media messages (photos, videos, text) and routes to appropriate functions, uploads to google photos
@@ -206,7 +204,7 @@ def main():
 	app = Application.builder().token(TOKEN).build()
 	app.add_handler(CommandHandler("start", start))
 	app.add_handler(CommandHandler("health", health_check))
-	app.add_handler(CommandHandler("debug", debug_switch), filters=filters.User(ADMIN_USER) if ADMIN_USER else filters.ALL)
+	app.add_handler(CommandHandler("debug", debug_switch,filters=filters.User(ADMIN_USER) if ADMIN_USER else filters.ALL))
 
 	# register a global error handler so uncaught exceptions are surfaced and handled
 	app.add_error_handler(error_handler)

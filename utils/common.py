@@ -8,11 +8,13 @@ import logging
 from dotenv import load_dotenv
 from telegram.ext import ContextTypes
 
-from main import ADMIN_USER
+
 from utils.google_utils import build_oauth_authorization_url
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+global ADMIN_USER
+ADMIN_USER = int(os.getenv("ADMIN_USER_ID", "0")) if os.getenv("ADMIN_USER_ID") else None
 
 
 DEFAULT_DB_CONFIG = {

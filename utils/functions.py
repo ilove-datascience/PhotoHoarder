@@ -28,7 +28,7 @@ except ModuleNotFoundError:
 	TORCH_AVAILABLE = False
 
 
-MODEL_PATH = Path("model.pth")
+MODEL_PATH = Path("model_lowerlr_1.pth")
 DOWNLOADS_DIR = Path("downloads")
 IMG_SIZE = 224
 DEVICE = torch.device("cuda" if TORCH_AVAILABLE and torch.cuda.is_available() else "cpu") if TORCH_AVAILABLE else "cpu"
