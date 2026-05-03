@@ -24,13 +24,20 @@ WEB_SERVER_STARTED = False
 
 DEBUG = False # degug flag to control debug messages, set to False in production
 SORT = True # sort photos to keep vs discard, set to False to keep all photos without sorting
+global ADMIN_USER
 
+ADMIN_USER = int(os.getenv("ADMIN_USER_ID", "0")) if os.getenv("ADMIN_USER_ID") else None
 
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # handles all media messages (photos, videos, text) and routes to appropriate functions, uploads to google photos
 	await getphotos(update, context, debug=DEBUG, sort=SORT)
 
-
+async def debug_switch(update: Update, context: ContextTypes.DEFAULT_TYPE):
+	global DEBUG
+	DEBUG = not DEBUG
+	status = "ON" if DEBUG else "OFF"
+	await update.message.reply_text(f"Debug mode is now {status}.")
+ 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 	# Application-level error handler to catch exceptions from handlers
 	try:
@@ -199,6 +206,7 @@ def main():
 	app = Application.builder().token(TOKEN).build()
 	app.add_handler(CommandHandler("start", start))
 	app.add_handler(CommandHandler("health", health_check))
+	app.add_handler(CommandHandler("debug", debug_switch), filters=filters.User(ADMIN_USER) if ADMIN_USER else filters.ALL)
 
 	# register a global error handler so uncaught exceptions are surfaced and handled
 	app.add_error_handler(error_handler)

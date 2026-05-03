@@ -8,6 +8,7 @@ import logging
 from dotenv import load_dotenv
 from telegram.ext import ContextTypes
 
+from main import ADMIN_USER
 from utils.google_utils import build_oauth_authorization_url
 
 
@@ -30,6 +31,7 @@ def _load_db_config():
 		"password": os.getenv("MYSQL_ROOT_PASSWORD", DEFAULT_DB_CONFIG["password"]),
 		"database": os.getenv("MYSQL_DATABASE", DEFAULT_DB_CONFIG["database"]),
 	}
+
 
 
 def _get_db_connection():
@@ -150,7 +152,7 @@ async def get_group_admin_creds_filename(group_id: int) -> str:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	user = update.effective_user.id 
-	if user == 919013273:
+	if user == ADMIN_USER:
 		groupchat = update.effective_chat.type in ['group', 'supergroup']
 		if groupchat:
 			group_id = update.effective_chat.id
