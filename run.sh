@@ -35,6 +35,28 @@ if [ -z "$DATA_DIR" ]; then
   fi
 fi
 
+normalize_railway_path() {
+  local path="$1"
+
+  if [ "${path#/}" != "$path" ]; then
+    printf '%s' "$path"
+    return
+  fi
+
+  path="${path#./}"
+  path="${path#data/}"
+
+  if [ -z "$path" ]; then
+    printf '/data'
+  else
+    printf '/data/%s' "$path"
+  fi
+}
+
+if [ -n "${RAILWAY_ENVIRONMENT:-}" ] && [ "${DATA_DIR#/}" = "$DATA_DIR" ]; then
+  DATA_DIR="$(normalize_railway_path "$DATA_DIR")"
+fi
+
 mkdir -p "$DATA_DIR"
 echo "Using data dir: $DATA_DIR"
 
@@ -42,6 +64,21 @@ echo "Using data dir: $DATA_DIR"
 GOOGLE_CLIENT_SECRET_PATH=${GOOGLE_CLIENT_SECRET_PATH:-"$DATA_DIR/client_secret.json"}
 GOOGLE_TOKEN_PATH=${GOOGLE_TOKEN_PATH:-"$DATA_DIR/token.json"}
 CREDS_DIR=${CREDS_DIR:-$DATA_DIR}
+
+if [ -n "${RAILWAY_ENVIRONMENT:-}" ]; then
+  case "$GOOGLE_CLIENT_SECRET_PATH" in
+    /*) ;;
+    *) GOOGLE_CLIENT_SECRET_PATH="$(normalize_railway_path "$GOOGLE_CLIENT_SECRET_PATH")" ;;
+  esac
+  case "$GOOGLE_TOKEN_PATH" in
+    /*) ;;
+    *) GOOGLE_TOKEN_PATH="$(normalize_railway_path "$GOOGLE_TOKEN_PATH")" ;;
+  esac
+  case "$CREDS_DIR" in
+    /*) ;;
+    *) CREDS_DIR="$(normalize_railway_path "$CREDS_DIR")" ;;
+  esac
+fi
 
 mkdir -p "$(dirname "$GOOGLE_CLIENT_SECRET_PATH")"
 mkdir -p "$(dirname "$GOOGLE_TOKEN_PATH")"
