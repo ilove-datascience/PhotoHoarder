@@ -9,7 +9,7 @@ import time
 from PIL import Image
 
 from .common import debug_send, _get_db_connection, get_group_admin_creds_filename
-from .google_utils import upload_to_album, CredentialRefreshError
+from .google_utils import upload_to_album, CredentialRefreshError, check_existing_album, _load_creds_by_filename
 
 try:
 	import torch
@@ -58,6 +58,42 @@ def _unload_sort_model_if_idle() -> bool:
 	gc.collect()
 	print("Unloaded sort model after idle timeout")
 	return True
+
+
+def _get_sort_model_health() -> tuple[str, str]:
+	"""Return the current cached model state and a short detail string."""
+	_unload_sort_model_if_idle()
+	if not TORCH_AVAILABLE:
+		return "unavailable", "torch/timm are not installed"
+
+	if _model is None:
+		return "unloaded", "no cached model in memory"
+
+	if _model_last_used_ts:
+		idle_seconds = max(0, int(time.time() - _model_last_used_ts))
+		return "loaded", f"last used {idle_seconds // 60}m {idle_seconds % 60}s ago"
+
+	return "loaded", "cached model is in memory"
+
+
+def _get_creds_health(creds_filename: str) -> tuple[str, str]:
+	"""Load and validate the configured Google Photos credentials file."""
+	if not creds_filename:
+		return "missing", "no admin credential file is linked to this chat"
+
+	try:
+		creds = _load_creds_by_filename(creds_filename)
+	except FileNotFoundError:
+		return "missing", f"credential file not found: {creds_filename}"
+	except CredentialRefreshError as exc:
+		return "invalid", str(exc)
+	except Exception as exc:
+		return "error", f"failed to load credentials: {exc}"
+
+	if getattr(creds, "valid", False):
+		return "valid", f"loaded from {creds_filename}"
+
+	return "invalid", f"token loaded but not valid: {creds_filename}"
 
 
 def _get_sort_model():
@@ -282,5 +318,36 @@ async def getphotos(update: Update, context: ContextTypes.DEFAULT_TYPE, debug: b
 		
 	
 async def health_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    
-	await context.bot.send_message(chat_id=update.effective_chat.id, text="Bot is healthy and responsive.")
+	chat = update.effective_chat
+	if not chat:
+		return
+
+	chat_id = chat.id
+	model_status, model_detail = _get_sort_model_health()
+	creds_filename = await get_group_admin_creds_filename(chat_id)
+	creds_status, creds_detail = _get_creds_health(creds_filename)
+	album_id = await get_album_id_from_db(chat_id)
+
+	if creds_status == "valid":
+		try:
+			album_exists = await check_existing_album(update)
+			if album_exists:
+				album_status = "available"
+				album_detail = f"album_link={album_id}"
+			else:
+				album_status = "missing or inaccessible"
+				album_detail = f"album_link={album_id or 'not set'}"
+		except Exception as exc:
+			album_status = "error"
+			album_detail = str(exc)
+	else:
+		album_status = "skipped"
+		album_detail = "credential check failed"
+
+	lines = [
+		"Health check:",
+		f"Model: {model_status} ({model_detail})",
+		f"Credentials: {creds_status} ({creds_detail})",
+		f"Album: {album_status} ({album_detail})",
+	]
+	await context.bot.send_message(chat_id=chat_id, text="\n".join(lines))

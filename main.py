@@ -12,7 +12,7 @@ from googleapiclient.discovery import build
 from telegram import Bot, Update, ForceReply, InlineKeyboardMarkup, InlineKeyboardButton, PhotoSize
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
-from utils.functions import getphotos
+from utils.functions import getphotos, health_check
 from utils import google_utils
 from utils.common import start, _get_db_connection, store_admin_creds
 
@@ -198,6 +198,7 @@ def main():
 	_start_web_server()
 	app = Application.builder().token(TOKEN).build()
 	app.add_handler(CommandHandler("start", start))
+	app.add_handler(CommandHandler("health", health_check))
 
 	# register a global error handler so uncaught exceptions are surfaced and handled
 	app.add_error_handler(error_handler)
