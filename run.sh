@@ -95,4 +95,4 @@ if [ -n "${GOOGLE_CLIENT_SECRET_JSON:-}" ]; then
   fi
 fi
 
-exec "$PYTHON_EXE" main.py "$@"
+exec "$PYTHON_EXE" -m src.main "$@"

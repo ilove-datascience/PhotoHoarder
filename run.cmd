@@ -14,5 +14,5 @@ if not exist "%PYTHON_EXE%" (
   exit /b 1
 )
 
-"%PYTHON_EXE%" "%~dp0main.py" %*
+"%PYTHON_EXE%" -m src.main %*
 exit /b %ERRORLEVEL%
