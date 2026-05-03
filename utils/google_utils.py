@@ -3,10 +3,12 @@ import pickle
 import threading
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from telegram import Update
 from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import Flow
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import AuthorizedSession, Request
 
@@ -16,6 +18,7 @@ SCOPES = [
 ]
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
+OAUTH_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI", "http://localhost:8000/oauth2callback")
 
 
 def get_path(env_name: str, default_path: str | Path) -> Path:
@@ -38,6 +41,17 @@ def get_path(env_name: str, default_path: str | Path) -> Path:
     print(f"Resolved path for {env_name}: {path}")
 
     return path
+
+
+def get_oauth_redirect_uri() -> str:
+    """Return the configured OAuth redirect URI."""
+    return OAUTH_REDIRECT_URI
+
+
+def uses_remote_oauth() -> bool:
+    """True when the OAuth redirect URI points to a non-localhost host."""
+    host = urlparse(get_oauth_redirect_uri()).hostname
+    return host not in {"localhost", "127.0.0.1", "::1"}
 
 
 IS_RAILWAY = os.getenv("RAILWAY_ENVIRONMENT") is not None
@@ -104,11 +118,19 @@ def _resolve_client_secret_path() -> Path:
     return GOOGLE_CLIENT_SECRET_PATH
 
 
-def build_oauth_authorization_url() -> str:
+def build_oauth_authorization_url(user_id: int, group_id: int) -> str:
     """Build a Google OAuth authorization link that can be shared via Telegram."""
-    flow = InstalledAppFlow.from_client_secrets_file(str(_resolve_client_secret_path()), SCOPES)
-    flow.redirect_uri = "http://localhost"
-    auth_url, _ = flow.authorization_url(access_type="offline", prompt="consent")
+    flow = Flow.from_client_secrets_file(
+        str(_resolve_client_secret_path()),
+        scopes=SCOPES,
+        redirect_uri=get_oauth_redirect_uri(),
+    )
+    auth_url, _ = flow.authorization_url(
+        access_type="offline",
+        prompt="consent",
+        include_granted_scopes="true",
+        state=f"{user_id}:{group_id}",
+    )
     return auth_url
 
 
@@ -144,7 +166,7 @@ def _load_or_create_creds(user_id: int, group_id: int):
         
         def run_auth():
             try:
-                creds_holder["creds"] = flow.run_local_server(port=0, open_browser=True)
+                creds_holder["creds"] = flow.run_local_server(port=0, open_browser=False)
             except Exception as e:
                 creds_holder["error"] = e
         

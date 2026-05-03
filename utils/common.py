@@ -8,7 +8,7 @@ import logging
 from dotenv import load_dotenv
 from telegram.ext import ContextTypes
 
-from utils.google_utils import OAuthTimeoutError, build_oauth_authorization_url, create_album
+from utils.google_utils import build_oauth_authorization_url
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -162,49 +162,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 			member_count = await context.bot.get_chat_member_count(group_id)
 			print(f"Group member count: {member_count}")
 
-			auth_url = build_oauth_authorization_url()
+			auth_url = build_oauth_authorization_url(update.effective_user.id, group_id)
 			
 			await context.bot.send_message(
 				chat_id=chat_id,
-				text=f"🔐 Google authorization is required.\n\nOpen this link and sign in:\n{auth_url}\n\nAfter you approve access, the browser may show 'localhost refused to connect' or a blank localhost page. That is expected in this flow; you can close that tab.\n\nIf setup does not complete automatically, run /start again."
+				text=f"🔐 Google authorization is required.\n\nOpen this link and sign in:\n{auth_url}\n\nAfter you approve access, I will finish the setup automatically through the callback URL."
 			)
 
-			await context.bot.send_message(
-				chat_id=chat_id,
-				text="⏳ Attempting album setup now (OAuth timeout is 1 minute)..."
-			)
-			
-			try:
-				album = await create_album(update)
-				if album:
-					album_id, album_url, creds_filename = album
-					print(f"Created album with ID: {album_id}")
-					await store_admin_creds(update.effective_user.id, update.effective_chat.id, creds_filename)
-					await link_sqlite(update, file_id="", drive_url=album_id)
-					
-					await context.bot.send_message(
-						chat_id=chat_id,
-						text=f"✅ Album is ready!\n\nAlbum link: {album_url}\nAlbum ID: {album_id}\n\nYou can now start sending photos and videos, and they'll be automatically uploaded to this album."
-					)
-				else:
-					await context.bot.send_message(
-						chat_id=chat_id,
-						text="❌ Failed to create album. Please try /start again."
-					)
-     
-			except OAuthTimeoutError as e:
-				print(f"OAuth timeout: {e}")
-				await context.bot.send_message(
-					chat_id=chat_id,
-					text=f"⏱️ Authorization timed out. Please complete the Google sign-in within 1 minute and try /start again."
-				)
-    
-    
-			except Exception as e:
-				print(f"Error creating album: {e}")
-				await context.bot.send_message(
-					chat_id=chat_id,
-					text=f"❌ Error: {str(e)}\n\nPlease try /start again."
-				)
+			return
 	else:
 		await context.bot.send_message(chat_id=update.effective_chat.id, text="Unauthorized user.")
