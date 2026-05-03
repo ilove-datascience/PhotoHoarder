@@ -67,6 +67,15 @@ def _store_oauth_flow(state: str, flow: Flow) -> None:
 	print(f"Stored OAuth flow for state: {state} (cache now has {len(_OAUTH_FLOW_CACHE)} entries)")
 
 
+def _retrieve_oauth_flow(state: str) -> Optional[Flow]:
+	"""Retrieve and remove a cached flow object by state. Returns None if not found or expired."""
+	_cleanup_expired_flows()
+	if state not in _OAUTH_FLOW_CACHE:
+		return None
+	flow, _ = _OAUTH_FLOW_CACHE.pop(state)
+	print(f"Retrieved and removed OAuth flow for state: {state} (cache now has {len(_OAUTH_FLOW_CACHE)} entries)")
+	return flow
+
 
 def get_path(env_name: str, default_path: str | Path) -> Path:
 	"""Read a path from env and resolve relative values from the repo root."""
