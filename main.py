@@ -75,7 +75,9 @@ async def oauth2callback(request: Request):
 		raise HTTPException(status_code=400, detail=request.query_params.get("error"))
 
 	state = request.query_params.get("state")
+	print(f"OAuth callback received with state: {state}")
 	if not state or ":" not in state:
+		print(f"Invalid state format: {state}")
 		raise HTTPException(status_code=400, detail="Missing or invalid OAuth state.")
 
 	user_id_str, group_id_str = state.split(":", 1)
@@ -83,18 +85,27 @@ async def oauth2callback(request: Request):
 		user_id = int(user_id_str)
 		group_id = int(group_id_str)
 	except ValueError as exc:
+		print(f"Failed to parse state {state}: {exc}")
 		raise HTTPException(status_code=400, detail="Invalid OAuth state payload.") from exc
 
 	# Retrieve the flow from cache (which has the code_verifier)
+	print(f"Looking for cached flow with state: {state}")
 	flow = google_utils._retrieve_oauth_flow(state)
 	if flow is None:
+		print(f"Flow not found in cache for state: {state}")
 		raise HTTPException(status_code=400, detail="OAuth flow state not found or expired. Try /start again.")
 
-	authorization_response = str(request.url)
+	print(f"Found cached flow for state: {state}")
+	# Reconstruct authorization response using the same redirect_uri from the flow
+	# This ensures we use HTTPS on Railway (request.url may be HTTP internally)
+	redirect_uri = google_utils.get_oauth_redirect_uri()
+	authorization_response = f"{redirect_uri}?{request.url.query}"
+	print(f"Authorization response URL: {authorization_response}")
 
 	try:
 		flow.fetch_token(authorization_response=authorization_response)
 	except Exception as exc:
+		print(f"Token exchange failed: {exc}")
 		raise HTTPException(status_code=400, detail=f"OAuth token exchange failed: {exc}") from exc
 
 	creds = flow.credentials

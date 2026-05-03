@@ -59,14 +59,18 @@ def _store_oauth_flow(state: str, flow: Flow) -> None:
 	"""Store a flow object in the cache keyed by state."""
 	_cleanup_expired_flows()
 	_OAUTH_FLOW_CACHE[state] = (flow, time.time())
+	print(f"Stored OAuth flow for state: {state} (cache now has {len(_OAUTH_FLOW_CACHE)} entries)")
 
 
 def _retrieve_oauth_flow(state: str) -> Optional[Flow]:
 	"""Retrieve and remove a flow object from the cache by state."""
 	_cleanup_expired_flows()
+	print(f"Attempting to retrieve flow for state: {state} (cache has {len(_OAUTH_FLOW_CACHE)} entries: {list(_OAUTH_FLOW_CACHE.keys())})")
 	if state in _OAUTH_FLOW_CACHE:
 		flow, _ = _OAUTH_FLOW_CACHE.pop(state)
+		print(f"Successfully retrieved and removed flow for state: {state}")
 		return flow
+	print(f"Flow not found in cache for state: {state}")
 	return None
 
 
@@ -182,7 +186,9 @@ def build_oauth_authorization_url(user_id: int, group_id: int) -> str:
 		state=state,
 	)
 	# Store the flow object so we can retrieve the code_verifier in the callback
+	print(f"Storing OAuth flow for state: {state}")
 	_store_oauth_flow(state, flow)
+	print(f"Generated OAuth URL: {auth_url}")
 	return auth_url
 
 
