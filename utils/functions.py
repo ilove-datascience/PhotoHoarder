@@ -169,14 +169,14 @@ async def getphotos(update: Update, context: ContextTypes.DEFAULT_TYPE, debug: b
 				return
 
 			if pred_label == "discard":
-				local_path = _save_discarded_photo(bytes(photo_bytes), file_id)
+				#local_path = _save_discarded_photo(bytes(photo_bytes), file_id)
 				await debug_send(
 					context,
 					chat_id,
-					f"Photo discarded by model ({confidence:.4f}) and saved locally to {local_path}",
+					f"Photo discarded by model ({confidence:.4f})",
 					debug,
 				)
-				print(f"Discarded photo saved locally: {local_path}")
+				print(f"Discarded photo saved locally")
 				return
 		
 		try:
@@ -255,3 +255,6 @@ async def getphotos(update: Update, context: ContextTypes.DEFAULT_TYPE, debug: b
 		print(f"Received text message: {original_text}")
 		await debug_send(context, chat_id, f"SYBAUUUUU {sender.upper()}", debug)
 
+async def health_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    
+	await context.bot.send_message(chat_id=update.effective_chat.id, text="Bot is healthy and responsive.")

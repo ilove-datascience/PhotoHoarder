@@ -98,7 +98,7 @@ async def oauth2callback(request: Request):
 	print(f"Found cached flow for state: {state}")
 	# Reconstruct authorization response using the same redirect_uri from the flow
 	# This ensures we use HTTPS on Railway (request.url may be HTTP internally)
-	redirect_uri = google_utils.get_oauth_redirect_uri()
+	redirect_uri = google_utils.OAUTH_REDIRECT_URI
 	authorization_response = f"{redirect_uri}?{request.url.query}"
 	print(f"Authorization response URL: {authorization_response}")
 
@@ -168,7 +168,7 @@ def _start_web_server() -> None:
 	thread = threading.Thread(target=server.run, daemon=True)
 	thread.start()
 	WEB_SERVER_STARTED = True
-	print(f"Web server started on port {port}; OAuth callback endpoint: {google_utils.get_oauth_redirect_uri()}")
+	print(f"Web server started on port {port}; OAuth callback endpoint: {google_utils.OAUTH_REDIRECT_URI}")
 
 
 def main():

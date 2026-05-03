@@ -20,26 +20,31 @@ SCOPES = [
     "https://www.googleapis.com/auth/photoslibrary.appendonly",
     "https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata",
 ]
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 
-def _resolve_oauth_redirect_uri() -> str:
+def _resolve_oauth_redirect_uri() -> tuple[str, bool]:
     override = os.getenv("OAUTH_REDIRECT_URI")
     if override:
-        return override
-
-    if os.getenv("RAILWAY_ENVIRONMENT"):
+        uri = override
+    elif os.getenv("RAILWAY_ENVIRONMENT"):
         railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN") or os.getenv("RAILWAY_STATIC_URL")
         if railway_domain:
             railway_domain = railway_domain.replace("https://", "").replace("http://", "").rstrip("/")
-            return f"https://{railway_domain}/oauth2callback"
+            uri = f"https://{railway_domain}/oauth2callback"
+        else:
+            uri = "http://localhost:8000/oauth2callback"
+    else:
+        uri = "http://localhost:8000/oauth2callback"
 
-    return "http://localhost:8000/oauth2callback"
+    host = urlparse(uri).hostname
+    uses_remote = host not in {"localhost", "127.0.0.1", "::1"}
+    return uri, uses_remote
 
+OAUTH_REDIRECT_URI, OAUTH_USES_REMOTE = _resolve_oauth_redirect_uri()
 
-OAUTH_REDIRECT_URI = _resolve_oauth_redirect_uri()
-print(f"Resolved OAuth redirect URI: {OAUTH_REDIRECT_URI}")
 
 # In-memory cache for OAuth flow state (code_verifier), with expiration
 # Maps state parameter -> (flow_object, timestamp)
@@ -61,17 +66,6 @@ def _store_oauth_flow(state: str, flow: Flow) -> None:
 	_OAUTH_FLOW_CACHE[state] = (flow, time.time())
 	print(f"Stored OAuth flow for state: {state} (cache now has {len(_OAUTH_FLOW_CACHE)} entries)")
 
-
-def _retrieve_oauth_flow(state: str) -> Optional[Flow]:
-	"""Retrieve and remove a flow object from the cache by state."""
-	_cleanup_expired_flows()
-	print(f"Attempting to retrieve flow for state: {state} (cache has {len(_OAUTH_FLOW_CACHE)} entries: {list(_OAUTH_FLOW_CACHE.keys())})")
-	if state in _OAUTH_FLOW_CACHE:
-		flow, _ = _OAUTH_FLOW_CACHE.pop(state)
-		print(f"Successfully retrieved and removed flow for state: {state}")
-		return flow
-	print(f"Flow not found in cache for state: {state}")
-	return None
 
 
 def get_path(env_name: str, default_path: str | Path) -> Path:
@@ -96,18 +90,8 @@ def get_path(env_name: str, default_path: str | Path) -> Path:
 	return path
 
 
-def get_oauth_redirect_uri() -> str:
-	"""Return the configured OAuth redirect URI."""
-	return OAUTH_REDIRECT_URI
-
-
-def uses_remote_oauth() -> bool:
-    """True when the OAuth redirect URI points to a non-localhost host."""
-    host = urlparse(get_oauth_redirect_uri()).hostname
-    return host not in {"localhost", "127.0.0.1", "::1"}
-
-
 IS_RAILWAY = os.getenv("RAILWAY_ENVIRONMENT") is not None
+print(f"Running on Railway: {IS_RAILWAY}")
 CREDS_DIR = get_path("CREDS_DIR", "/data" if IS_RAILWAY else BASE_DIR / "config")
 print(f"Using credential directory: {CREDS_DIR}")
 CREDS_DIR.mkdir(parents=True, exist_ok=True)
@@ -176,7 +160,7 @@ def build_oauth_authorization_url(user_id: int, group_id: int) -> str:
 	flow = Flow.from_client_secrets_file(
 		str(_resolve_client_secret_path()),
 		scopes=SCOPES,
-		redirect_uri=get_oauth_redirect_uri(),
+        redirect_uri=OAUTH_REDIRECT_URI,
 	)
 	state = f"{user_id}:{group_id}"
 	auth_url, _ = flow.authorization_url(

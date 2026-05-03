@@ -12,16 +12,13 @@ from utils.google_utils import build_oauth_authorization_url
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-# Load .env locally; skip if not found (e.g., Railway uses env vars directly)
-#env_file = BASE_DIR / ".env"
-#if env_file.exists():
-#	load_dotenv(env_file)
+
 
 DEFAULT_DB_CONFIG = {
 	"host": "localhost",
 	"user": "root",
 	"password": "",
-	"database": "photohoarderlalalal"
+	"database": "photohoarder"
 }
 
 
