@@ -191,12 +191,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 						chat_id=chat_id,
 						text="❌ Failed to create album. Please try /start again."
 					)
+     
 			except OAuthTimeoutError as e:
 				print(f"OAuth timeout: {e}")
 				await context.bot.send_message(
 					chat_id=chat_id,
 					text=f"⏱️ Authorization timed out. Please complete the Google sign-in within 1 minute and try /start again."
 				)
+    
+    
 			except Exception as e:
 				print(f"Error creating album: {e}")
 				await context.bot.send_message(

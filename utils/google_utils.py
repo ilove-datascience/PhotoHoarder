@@ -171,6 +171,7 @@ def _load_or_create_creds(user_id: int, group_id: int):
 def _build_photos_service(user_id: int, group_id: int):
     creds = _load_or_create_creds(user_id, group_id)
     service = build("photoslibrary", "v1", credentials=creds, static_discovery=False)
+    print(f"Built Google Photos service for user {user_id}, group {group_id}")
     return service, creds
 
 
@@ -312,7 +313,7 @@ async def create_album(update: Update) -> tuple:
     group_name = update.effective_chat.title if update.effective_chat.title else "Default Group"
     album_title = f"{group_name} Album"
     creds_filename = _get_creds_filename(user_id, group_id)
-
+    print(f"Creating album for group {group_id} with title '{album_title}' and credentials file '{creds_filename}'")
     # Reuse an existing group album from SQL without creating a duplicate.
     try:
         from .common import _get_db_connection
@@ -326,6 +327,7 @@ async def create_album(update: Update) -> tuple:
         result = cursor.fetchone()
         cursor.close()
         conn.close()
+        print(f"Database query for existing album returned: {result}")
 
         existing_album_id = result[0] if result and result[0] else None
         print(f"Existing album ID from database for group {group_id}: {existing_album_id}")
