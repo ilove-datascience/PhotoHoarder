@@ -343,21 +343,19 @@ async def health_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 	creds_status, creds_detail = _get_creds_health(creds_filename)
 	album_id = await get_album_id_from_db(chat_id)
 
-	if creds_status == "valid":
-		try:
-			album_exists = await check_existing_album(update)
-			if album_exists:
-				album_status = "available"
-				#album_detail = f"album_link={album_id}"
-			else:
-				album_status = "missing or inaccessible"
-				#album_detail = f"album_link={album_id or 'not set'}"
-		except Exception as exc:
-			album_status = "error"
-			#album_detail = str(exc)
-	else:
-		album_status = "skipped"
-		#album_detail = "credential check failed"
+	
+	try:
+		album_exists = await check_existing_album(update)
+		if album_exists:
+			album_status = "available"
+			#album_detail = f"album_link={album_id}"
+		else:
+			album_status = "missing or inaccessible"
+			#album_detail = f"album_link={album_id or 'not set'}"
+	except Exception as exc:
+		album_status = "error"
+		#album_detail = str(exc)
+
 
 	lines = [
 		"Health check:",
