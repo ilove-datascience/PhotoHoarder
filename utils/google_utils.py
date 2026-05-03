@@ -169,6 +169,7 @@ def _load_or_create_creds(user_id: int, group_id: int):
 
 
 def _build_photos_service(user_id: int, group_id: int):
+    print(f"Building Google Photos service for user {user_id}, group {group_id}")
     creds = _load_or_create_creds(user_id, group_id)
     service = build("photoslibrary", "v1", credentials=creds, static_discovery=False)
     print(f"Built Google Photos service for user {user_id}, group {group_id}")
@@ -335,6 +336,7 @@ async def create_album(update: Update) -> tuple:
             # Clear any expired credentials to force fresh OAuth flow.
             # If the user runs /start, they want a fresh login, not to reuse a broken token.
             _clear_expired_creds(user_id, group_id)
+            print(f"Cleared expired credentials for user {user_id}, group {group_id} to reuse existing album {existing_album_id}")
             # Now load or create fresh credentials.
             _build_photos_service(user_id, group_id)
             existing_album_url = f"https://photos.google.com/lr/album/{existing_album_id}"
