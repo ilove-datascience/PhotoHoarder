@@ -85,13 +85,12 @@ async def oauth2callback(request: Request):
 	except ValueError as exc:
 		raise HTTPException(status_code=400, detail="Invalid OAuth state payload.") from exc
 
-	redirect_uri = google_utils.get_oauth_redirect_uri()
-	authorization_response = f"{redirect_uri}?{request.url.query}"
-	flow = Flow.from_client_secrets_file(
-		str(google_utils._resolve_client_secret_path()),
-		scopes=google_utils.SCOPES,
-		redirect_uri=redirect_uri,
-	)
+	# Retrieve the flow from cache (which has the code_verifier)
+	flow = google_utils._retrieve_oauth_flow(state)
+	if flow is None:
+		raise HTTPException(status_code=400, detail="OAuth flow state not found or expired. Try /start again.")
+
+	authorization_response = str(request.url)
 
 	try:
 		flow.fetch_token(authorization_response=authorization_response)

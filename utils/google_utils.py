@@ -3,6 +3,7 @@ import pickle
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
+import time
 
 from dotenv import load_dotenv
 from telegram import Update
@@ -35,32 +36,60 @@ def _resolve_oauth_redirect_uri() -> str:
 OAUTH_REDIRECT_URI = _resolve_oauth_redirect_uri()
 print(f"Resolved OAuth redirect URI: {OAUTH_REDIRECT_URI}")
 
+# In-memory cache for OAuth flow state (code_verifier), with expiration
+# Maps state parameter -> (flow_object, timestamp)
+_OAUTH_FLOW_CACHE: dict = {}
+_OAUTH_CACHE_EXPIRY = 600  # 10 minutes
+
+
+def _cleanup_expired_flows() -> None:
+	"""Remove expired flow states from cache."""
+	now = time.time()
+	expired_states = [state for state, (_, ts) in _OAUTH_FLOW_CACHE.items() if now - ts > _OAUTH_CACHE_EXPIRY]
+	for state in expired_states:
+		del _OAUTH_FLOW_CACHE[state]
+
+
+def _store_oauth_flow(state: str, flow: Flow) -> None:
+	"""Store a flow object in the cache keyed by state."""
+	_cleanup_expired_flows()
+	_OAUTH_FLOW_CACHE[state] = (flow, time.time())
+
+
+def _retrieve_oauth_flow(state: str) -> Optional[Flow]:
+	"""Retrieve and remove a flow object from the cache by state."""
+	_cleanup_expired_flows()
+	if state in _OAUTH_FLOW_CACHE:
+		flow, _ = _OAUTH_FLOW_CACHE.pop(state)
+		return flow
+	return None
+
 
 def get_path(env_name: str, default_path: str | Path) -> Path:
-    """Read a path from env and resolve relative values from the repo root."""
-    value = os.getenv(env_name)
-    path = Path(value) if value else Path(default_path)
+	"""Read a path from env and resolve relative values from the repo root."""
+	value = os.getenv(env_name)
+	path = Path(value) if value else Path(default_path)
 
-    if not path.is_absolute():
-        if IS_RAILWAY:
-            normalized = path.as_posix()
-            if normalized.startswith("./"):
-                normalized = normalized[2:]
-            if normalized.startswith("data/"):
-                normalized = normalized[5:]
-            elif normalized == "data":
-                normalized = ""
-            path = Path("/data") if not normalized else Path("/data") / normalized
-        else:
-            path = BASE_DIR / path
-    print(f"Resolved path for {env_name}: {path}")
+	if not path.is_absolute():
+		if IS_RAILWAY:
+			normalized = path.as_posix()
+			if normalized.startswith("./"):
+				normalized = normalized[2:]
+			if normalized.startswith("data/"):
+				normalized = normalized[5:]
+			elif normalized == "data":
+				normalized = ""
+			path = Path("/data") if not normalized else Path("/data") / normalized
+		else:
+			path = BASE_DIR / path
+	print(f"Resolved path for {env_name}: {path}")
 
-    return path
+	return path
 
 
 def get_oauth_redirect_uri() -> str:
-    """Return the configured OAuth redirect URI."""
-    return OAUTH_REDIRECT_URI
+	"""Return the configured OAuth redirect URI."""
+	return OAUTH_REDIRECT_URI
 
 
 def uses_remote_oauth() -> bool:
@@ -134,50 +163,53 @@ def _resolve_client_secret_path() -> Path:
 
 
 def build_oauth_authorization_url(user_id: int, group_id: int) -> str:
-    """Build a Google OAuth authorization link that can be shared via Telegram."""
-    flow = Flow.from_client_secrets_file(
-        str(_resolve_client_secret_path()),
-        scopes=SCOPES,
-        redirect_uri=get_oauth_redirect_uri(),
-    )
-    auth_url, _ = flow.authorization_url(
-        access_type="offline",
-        prompt="consent",
-        include_granted_scopes="true",
-        state=f"{user_id}:{group_id}",
-    )
-    return auth_url
+	"""Build a Google OAuth authorization link that can be shared via Telegram."""
+	flow = Flow.from_client_secrets_file(
+		str(_resolve_client_secret_path()),
+		scopes=SCOPES,
+		redirect_uri=get_oauth_redirect_uri(),
+	)
+	state = f"{user_id}:{group_id}"
+	auth_url, _ = flow.authorization_url(
+		access_type="offline",
+		prompt="consent",
+		include_granted_scopes="true",
+		state=state,
+	)
+	# Store the flow object so we can retrieve the code_verifier in the callback
+	_store_oauth_flow(state, flow)
+	return auth_url
 
 
 def _load_or_create_creds(user_id: int, group_id: int):
-    """Load cached credentials or run full OAuth flow if cache doesn't exist."""
-    creds_filename = _get_creds_filename(user_id, group_id)
-    creds_path = CREDS_DIR / creds_filename
-    print(f"Looking for credentials at: {creds_path}")
-    
-    if creds_path.exists():
-        with open(creds_path, "rb") as token:
-            creds = pickle.load(token)
-        if hasattr(creds, "has_scopes") and not creds.has_scopes(SCOPES):
-            # Scope set changed (for example, sharing was added); re-run OAuth.
-            creds_path.unlink(missing_ok=True)
-            return _load_or_create_creds(user_id, group_id)
-        # Refresh if expired
-        if creds.expired and creds.refresh_token:
-            try:
-                creds.refresh(Request())
-                with open(creds_path, "wb") as token:
-                    pickle.dump(creds, token)
-            except Exception as e:
-                print(f"Failed to refresh credentials for user {user_id}, group {group_id}: {e}")
-                raise CredentialRefreshError(
-                    f"Credentials have expired and could not be refreshed. Please run /start again to re-authorize."
-                )
-        return creds
+	"""Load cached credentials or run full OAuth flow if cache doesn't exist."""
+	creds_filename = _get_creds_filename(user_id, group_id)
+	creds_path = CREDS_DIR / creds_filename
+	print(f"Looking for credentials at: {creds_path}")
 
-    raise RuntimeError(
-        "Interactive OAuth setup now uses the /oauth2callback flow. Run /start and complete authorization through the bot link."
-    )
+	if creds_path.exists():
+		with open(creds_path, "rb") as token:
+			creds = pickle.load(token)
+		if hasattr(creds, "has_scopes") and not creds.has_scopes(SCOPES):
+			# Scope set changed (for example, sharing was added); re-run OAuth.
+			creds_path.unlink(missing_ok=True)
+			return _load_or_create_creds(user_id, group_id)
+		# Refresh if expired
+		if creds.expired and creds.refresh_token:
+			try:
+				creds.refresh(Request())
+				with open(creds_path, "wb") as token:
+					pickle.dump(creds, token)
+			except Exception as e:
+				print(f"Failed to refresh credentials for user {user_id}, group {group_id}: {e}")
+				raise CredentialRefreshError(
+					f"Credentials have expired and could not be refreshed. Please run /start again to re-authorize."
+				)
+		return creds
+
+	raise RuntimeError(
+		"Interactive OAuth setup now uses the /oauth2callback flow. Run /start and complete authorization through the bot link."
+	)
 
 
 def _build_photos_service(user_id: int, group_id: int):
