@@ -158,6 +158,7 @@ def _start_web_server() -> None:
 	thread = threading.Thread(target=server.run, daemon=True)
 	thread.start()
 	WEB_SERVER_STARTED = True
+	print(f"Web server started on port {port}; OAuth callback endpoint: {google_utils.get_oauth_redirect_uri()}")
 
 
 def main():

@@ -33,6 +33,7 @@ def _resolve_oauth_redirect_uri() -> str:
 
 
 OAUTH_REDIRECT_URI = _resolve_oauth_redirect_uri()
+print(f"Resolved OAuth redirect URI: {OAUTH_REDIRECT_URI}")
 
 
 def get_path(env_name: str, default_path: str | Path) -> Path:
