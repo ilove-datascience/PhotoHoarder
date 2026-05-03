@@ -1,6 +1,5 @@
 import os
 import pickle
-import threading
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -9,7 +8,6 @@ from dotenv import load_dotenv
 from telegram import Update
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import Flow
-from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import AuthorizedSession, Request
 
 SCOPES = [
@@ -18,7 +16,23 @@ SCOPES = [
 ]
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
-OAUTH_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI", "http://localhost:8000/oauth2callback")
+
+
+def _resolve_oauth_redirect_uri() -> str:
+    override = os.getenv("OAUTH_REDIRECT_URI")
+    if override:
+        return override
+
+    if os.getenv("RAILWAY_ENVIRONMENT"):
+        railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN") or os.getenv("RAILWAY_STATIC_URL")
+        if railway_domain:
+            railway_domain = railway_domain.replace("https://", "").replace("http://", "").rstrip("/")
+            return f"https://{railway_domain}/oauth2callback"
+
+    return "http://localhost:8000/oauth2callback"
+
+
+OAUTH_REDIRECT_URI = _resolve_oauth_redirect_uri()
 
 
 def get_path(env_name: str, default_path: str | Path) -> Path:
@@ -159,35 +173,10 @@ def _load_or_create_creds(user_id: int, group_id: int):
                     f"Credentials have expired and could not be refreshed. Please run /start again to re-authorize."
                 )
         return creds
-    else:
-        # Run full OAuth flow with timeout for first-time auth
-        flow = InstalledAppFlow.from_client_secrets_file(str(_resolve_client_secret_path()), SCOPES)
-        creds_holder = {"creds": None, "error": None}
-        
-        def run_auth():
-            try:
-                creds_holder["creds"] = flow.run_local_server(port=0, open_browser=False)
-            except Exception as e:
-                creds_holder["error"] = e
-        
-        auth_thread = threading.Thread(target=run_auth, daemon=True)
-        auth_thread.start()
-        auth_thread.join(timeout=OAUTH_TIMEOUT)
-        
-        if auth_thread.is_alive():
-            raise OAuthTimeoutError(f"OAuth flow timed out after {OAUTH_TIMEOUT} seconds. Please authorize the app and try again.")
-        
-        if creds_holder["error"]:
-            raise creds_holder["error"]
-        
-        if not creds_holder["creds"]:
-            raise RuntimeError("OAuth flow failed to produce credentials.")
-        
-        creds = creds_holder["creds"]
-        # Save credentials for future use
-        with open(creds_path, "wb") as token:
-            pickle.dump(creds, token)
-        return creds
+
+    raise RuntimeError(
+        "Interactive OAuth setup now uses the /oauth2callback flow. Run /start and complete authorization through the bot link."
+    )
 
 
 def _build_photos_service(user_id: int, group_id: int):
