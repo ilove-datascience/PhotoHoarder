@@ -3,6 +3,8 @@ from telegram.ext import CallbackContext, ContextTypes
 from mysql.connector import Error
 from io import BytesIO
 from pathlib import Path
+import gc
+import time
 
 from PIL import Image
 
@@ -35,14 +37,37 @@ if TORCH_AVAILABLE:
 	])
 
 _model = None
+_model_last_used_ts = 0.0
+_MODEL_IDLE_TIMEOUT_SECONDS = 60 * 60
+
+
+def _unload_sort_model_if_idle() -> bool:
+	"""Unload the cached sort model when it has been idle too long."""
+	global _model, _model_last_used_ts
+	if _model is None:
+		return False
+
+	now = time.time()
+	if now - _model_last_used_ts < _MODEL_IDLE_TIMEOUT_SECONDS:
+		return False
+
+	_model = None
+	_model_last_used_ts = 0.0
+	if TORCH_AVAILABLE and torch.cuda.is_available():
+		torch.cuda.empty_cache()
+	gc.collect()
+	print("Unloaded sort model after idle timeout")
+	return True
 
 
 def _get_sort_model():
 	if not TORCH_AVAILABLE:
 		raise RuntimeError("Photo sorting is unavailable because torch/timm are not installed.")
 
-	global _model
+	global _model, _model_last_used_ts
+	_unload_sort_model_if_idle()
 	if _model is not None:
+		_model_last_used_ts = time.time()
 		return _model
 
 	if not MODEL_PATH.exists():
@@ -51,13 +76,14 @@ def _get_sort_model():
 	model = timm.create_model(
 		"mobilenetv3_small_100",
 		pretrained=False,
-		num_classes=2,
+		num_classes=2
 	)
-	state = torch.load(MODEL_PATH, map_location=DEVICE)
+	state = torch.load(MODEL_PATH, map_location=DEVICE, weights_only=True)
 	model.load_state_dict(state)
 	model.to(DEVICE)
 	model.eval()
 	_model = model
+	_model_last_used_ts = time.time()
 	return _model
 
 
@@ -107,6 +133,8 @@ async def get_album_id_from_db(chat_id: int) -> str:
 
 
 async def getphotos(update: Update, context: ContextTypes.DEFAULT_TYPE, debug: bool, sort: bool = False) -> None:
+	# Opportunistically free model memory even if this update is not a sortable photo.
+	_unload_sort_model_if_idle()
     
 	# normalize message and sender information safely (updates may lack `message`)
 	message = update.effective_message
@@ -190,6 +218,7 @@ async def getphotos(update: Update, context: ContextTypes.DEFAULT_TYPE, debug: b
 			)
 			await debug_send(context, chat_id, f"Photo uploaded to album! URL: {photo_url}", debug)
 			print(f"Photo uploaded to album {album_id}: {photo_url}")
+   
 		except CredentialRefreshError as e:
 			await context.bot.send_message(
 				chat_id=chat_id,
@@ -229,12 +258,14 @@ async def getphotos(update: Update, context: ContextTypes.DEFAULT_TYPE, debug: b
 			)
 			await debug_send(context, chat_id, f"Video uploaded to album! URL: {video_url}", debug)
 			print(f"Video uploaded to album {album_id}: {video_url}")
+   
 		except CredentialRefreshError as e:
 			await context.bot.send_message(
 				chat_id=chat_id,
 				text=f"🔐 {str(e)}"
 			)
 			print(f"Credential refresh failed for video upload: {e}")
+   
 		except FileNotFoundError as e:
 			if "google_photos_creds" in str(e):
 				await context.bot.send_message(
@@ -249,12 +280,7 @@ async def getphotos(update: Update, context: ContextTypes.DEFAULT_TYPE, debug: b
 			await debug_send(context, chat_id, f"Failed to upload video: {str(e)}", debug)
 			print(f"Error uploading video to album: {e}")
 		
-	# mock reply for now
-	elif message and getattr(message, "text", None):
-		original_text = message.text
-		print(f"Received text message: {original_text}")
-		await debug_send(context, chat_id, f"SYBAUUUUU {sender.upper()}", debug)
-
+	
 async def health_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
 	await context.bot.send_message(chat_id=update.effective_chat.id, text="Bot is healthy and responsive.")
