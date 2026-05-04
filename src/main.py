@@ -6,6 +6,10 @@ import pickle
 import threading
 
 import uvicorn
+from logging.handlers import RotatingFileHandler
+import traceback
+import datetime
+import sys
 from fastapi import FastAPI, HTTPException, Request
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
@@ -17,6 +21,55 @@ from src.utils import google_utils
 from src.utils.common import start, _get_db_connection, store_admin_creds, ADMIN_USER
 
 logger = logging.getLogger(__name__)
+IS_RAILWAY = os.getenv("RAILWAY_ENVIRONMENT") is not None
+
+def setup_logging():
+	"""Configure logging: always stream to stdout and optionally write to a rotating file."""
+	log_dir = Path("/data/logs") if IS_RAILWAY else Path(".") / "logs"
+	try:
+		log_dir.mkdir(parents=True, exist_ok=True)
+	except Exception:
+		pass
+
+	log_file = log_dir / "app.log"
+	fmt = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+	formatter = logging.Formatter(fmt)
+
+	# Stream handler (stdout) — always present so PaaS captures logs
+	stream_h = logging.StreamHandler(sys.stdout)
+	stream_h.setFormatter(formatter)
+
+	# File handler (optional)
+	handlers = [stream_h]
+	try:
+		file_h = RotatingFileHandler(log_file, maxBytes=5_000_000, backupCount=3)
+		file_h.setFormatter(formatter)
+		handlers.append(file_h)
+	except Exception:
+		# If file handler can't be created, continue with stream only
+		pass
+
+	# Attach handlers if not already present
+	if not logger.handlers:
+		for h in handlers:
+			logger.addHandler(h)
+	else:
+		# ensure we have a stream handler
+		if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+			logger.addHandler(stream_h)
+
+	level = os.getenv("LOG_LEVEL", "INFO").upper()
+	try:
+		logger.setLevel(getattr(logging, level))
+	except Exception:
+		logger.setLevel(logging.INFO)
+
+
+setup_logging()
+
+# In-memory last error store (UTC ISO timestamp and traceback)
+LAST_ERROR = None
+LAST_ERROR_TS = None
 TOKEN = os.getenv("tg_token")
 BOT = Bot(token=TOKEN) if TOKEN else None
 WEB_APP = FastAPI()
@@ -36,14 +89,45 @@ async def debug_switch(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	status = "ON" if DEBUG else "OFF"
 	await update.message.reply_text(f"Debug mode is now {status}.")
  
+async def last_error_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+	# Only allow admin to fetch last error
+	try:
+		user_id = getattr(update.effective_user, "id", None)
+	except Exception:
+		user_id = None
+	if ADMIN_USER and user_id != ADMIN_USER:
+		await update.message.reply_text("Unauthorized.")
+		return
+	if LAST_ERROR:
+		text = f"Last error at {LAST_ERROR_TS}:\n{LAST_ERROR[:3800]}"
+	else:
+		text = "No recorded errors."
+	await update.message.reply_text(text)
+
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 	# Application-level error handler to catch exceptions from handlers
 	try:
 		print("Exception in handler:", context.error)
-		# try to notify the chat if available
+		# capture traceback text
+		try:
+			tb_text = "".join(traceback.format_exception(type(context.error), context.error, context.error.__traceback__))
+		except Exception:
+			tb_text = str(context.error)
+		# store last error (UTC)
+		global LAST_ERROR, LAST_ERROR_TS
+		LAST_ERROR = tb_text
+		LAST_ERROR_TS = datetime.datetime.utcnow().isoformat()
+		logger.error("Unhandled exception in handler: %s", tb_text)
+		# try to notify the chat if available (short message)
 		if getattr(update, "effective_chat", None):
 			try:
 				await context.bot.send_message(chat_id=update.effective_chat.id, text="⚠️ An internal error occurred. The maintainers have been notified.")
+				# send full traceback to admin only
+				if ADMIN_USER:
+					try:
+						await context.bot.send_message(chat_id=ADMIN_USER, text=f"Internal error in chat {getattr(update.effective_chat,'id',None)}: {context.error}\n\nTraceback (truncated):\n{tb_text[:3800]}")
+					except Exception as ex:
+						print("Failed to send traceback to admin via Telegram:", ex)
 			except Exception as ex:
 				print("Failed to send error notification to chat:", ex)
 	except Exception as e:
@@ -204,6 +288,7 @@ def main():
 	app = Application.builder().token(TOKEN).build()
 	app.add_handler(CommandHandler("start", start))
 	app.add_handler(CommandHandler("health", health_check))
+	app.add_handler(CommandHandler("last-error", last_error_cmd, filters=filters.User(ADMIN_USER) if ADMIN_USER else filters.ALL))
 	app.add_handler(CommandHandler("debug", debug_switch,filters=filters.User(ADMIN_USER) if ADMIN_USER else filters.ALL))
 
 	# register a global error handler so uncaught exceptions are surfaced and handled
