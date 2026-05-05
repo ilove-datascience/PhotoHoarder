@@ -288,7 +288,7 @@ def main():
 	app = Application.builder().token(TOKEN).build()
 	app.add_handler(CommandHandler("start", start))
 	app.add_handler(CommandHandler("health", health_check))
-	app.add_handler(CommandHandler("last-error", last_error_cmd, filters=filters.User(ADMIN_USER) if ADMIN_USER else filters.ALL))
+	app.add_handler(CommandHandler("lasterror", last_error_cmd, filters=filters.User(ADMIN_USER) if ADMIN_USER else filters.ALL))
 	app.add_handler(CommandHandler("debug", debug_switch,filters=filters.User(ADMIN_USER) if ADMIN_USER else filters.ALL))
 
 	# register a global error handler so uncaught exceptions are surfaced and handled
