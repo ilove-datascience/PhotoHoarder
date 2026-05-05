@@ -83,7 +83,7 @@ async def respond_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
 		choices = ["daddy", "master", "sir", "boss", "chief", "captain", "commander",  "sgt", "SARGANT",  "tyrant", "dictator", "leader", "head honcho, im just a stupid clanker"]
 		choice = random.choice(choices)
 		msg= f"yes {choice}.."
-		await update.message.reply_text("Yes daddy..")
+		await update.message.reply_text(msg)
 
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # handles all media messages (photos, videos, text) and routes to appropriate functions, uploads to google photos
