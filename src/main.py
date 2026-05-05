@@ -77,7 +77,10 @@ WEB_SERVER_STARTED = False
 
 DEBUG = False # degug flag to control debug messages, set to False in production
 SORT = True # sort photos to keep vs discard, set to False to keep all photos without sorting
-
+async def respond_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
+	# generic response handler for any text message that doesn't match other handlers, can be used for debugging or future features
+	if update.message and update.message.text:
+		await update.message.reply_text("Yes daddy..")
 
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # handles all media messages (photos, videos, text) and routes to appropriate functions, uploads to google photos
@@ -293,7 +296,12 @@ def main():
 
 	# register a global error handler so uncaught exceptions are surfaced and handled
 	app.add_error_handler(error_handler)
-	
+	app.add_handler(
+		MessageHandler(
+			filters.User(ADMIN_USER),
+			respond_msg,
+		)
+	)
 	app.add_handler(
 		MessageHandler(
 			filters.PHOTO | filters.VIDEO | (filters.TEXT & ~filters.COMMAND),
