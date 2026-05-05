@@ -22,7 +22,7 @@ from src.utils.common import start, _get_db_connection, store_admin_creds, ADMIN
 
 logger = logging.getLogger(__name__)
 IS_RAILWAY = os.getenv("RAILWAY_ENVIRONMENT") is not None
-
+JASON_USER = int(os.getenv("jason_user", "0")) if os.getenv("jason_user") else None
 def setup_logging():
 	"""Configure logging: always stream to stdout and optionally write to a rotating file."""
 	log_dir = Path("/data/logs") if IS_RAILWAY else Path(".") / "logs"
@@ -74,12 +74,15 @@ TOKEN = os.getenv("tg_token")
 BOT = Bot(token=TOKEN) if TOKEN else None
 WEB_APP = FastAPI()
 WEB_SERVER_STARTED = False
-
+import random
 DEBUG = False # degug flag to control debug messages, set to False in production
 SORT = True # sort photos to keep vs discard, set to False to keep all photos without sorting
 async def respond_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	# generic response handler for any text message that doesn't match other handlers, can be used for debugging or future features
 	if update.message and update.message.text:
+		choices = ["daddy", "master", "sir", "boss", "chief", "captain", "commander",  "sgt", "SARGANT",  "tyrant", "dictator", "leader", "head honcho, im just a stupid clanker"]
+		choice = random.choice(choices)
+		msg= f"yes {choice}.."
 		await update.message.reply_text("Yes daddy..")
 
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -298,7 +301,7 @@ def main():
 	app.add_error_handler(error_handler)
 	app.add_handler(
 		MessageHandler(
-			filters.User(ADMIN_USER),
+			filters.User(JASON_USER),
 			respond_msg,
 		)
 	)
