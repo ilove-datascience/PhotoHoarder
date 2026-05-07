@@ -1,8 +1,12 @@
 from telegram import Update
+from telegram.error import TimedOut
 from telegram.ext import CallbackContext, ContextTypes
 from mysql.connector import Error
 from io import BytesIO
 from pathlib import Path
+import tempfile
+import asyncio
+import traceback
 import gc
 import time
 from urllib.parse import urlparse
@@ -18,6 +22,7 @@ from .google_utils import (
 	OAUTH_REDIRECT_URI,
 	OAUTH_USES_REMOTE,
 )
+from .image_gen import genderswap_wrap
 
 try:
 	import torch
@@ -34,6 +39,22 @@ except ModuleNotFoundError:
 BASE_DIR = Path(__file__).resolve().parents[2]
 MODEL_NAME= os.getenv("MODEL_NAME", "model_lowerlr_1.pth")
 MODEL_PATH = BASE_DIR / "models" / MODEL_NAME
+
+
+async def _get_telegram_file_with_retry(file_obj, *, label: str, attempts: int = 3, delay_seconds: float = 1.0):
+	"""Fetch a Telegram file with a small retry loop for transient timeouts."""
+	last_error = None
+	for attempt in range(1, attempts + 1):
+		try:
+			print(f"{label}: get_file attempt {attempt}/{attempts}")
+			return await file_obj.get_file()
+		except TimedOut as error:
+			last_error = error
+			print(f"{label}: get_file timed out on attempt {attempt}/{attempts}: {error}")
+			if attempt < attempts:
+				await asyncio.sleep(delay_seconds * attempt)
+	if last_error:
+		raise last_error
 DOWNLOADS_DIR = BASE_DIR / "downloads"
 IMG_SIZE = 224
 DEVICE = torch.device("cuda" if TORCH_AVAILABLE and torch.cuda.is_available() else "cpu") if TORCH_AVAILABLE else "cpu"
@@ -236,7 +257,7 @@ async def getphotos(update: Update, context: ContextTypes.DEFAULT_TYPE, debug: b
 		# get photo obj
 		photo = message.photo[-1]
 		file_id = photo.file_id  # get file obj id
-		file = await photo.get_file()
+		file = await _get_telegram_file_with_retry(photo, label=f"photo {file_id}")
 		photo_bytes = await file.download_as_bytearray()
 
 		first_name = getattr(message.from_user, "first_name", "unknown") if message and getattr(message, "from_user", None) else "unknown"
@@ -297,7 +318,7 @@ async def getphotos(update: Update, context: ContextTypes.DEFAULT_TYPE, debug: b
 	if message and message.video:
 		video = message.video
 		file_id = video.file_id
-		file = await video.get_file()
+		file = await _get_telegram_file_with_retry(video, label=f"video {file_id}")
 		video_bytes = await file.download_as_bytearray()
 		first_name = getattr(message.from_user, "first_name", "unknown") if message and getattr(message, "from_user", None) else "unknown"
 		print((f'{first_name} sent a video with file_id: {file_id}'))
@@ -370,3 +391,55 @@ async def health_check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 		f"Album: {album_status}",
 	]
 	await context.bot.send_message(chat_id=chat_id, text="\n".join(lines))
+ 
+
+
+async def _genderswap_process(bot, chat_id, img):
+	"""Background task to process genderswap without blocking the handler."""
+	try:
+		print(f"genderswap: downloading file {img.file_id}")
+		input_file = await _get_telegram_file_with_retry(img, label=f"genderswap {img.file_id}")
+		with tempfile.TemporaryDirectory() as tmpdir:
+			input_path = Path(tmpdir) / f"{img.file_id}.jpg"
+			output_path = Path(tmpdir) / "gender_swap.png"
+			print(f"genderswap: downloading to {input_path}")
+			await input_file.download_to_drive(custom_path=str(input_path))
+			print("genderswap: running image edit")
+			await genderswap_wrap(str(input_path), str(output_path))
+			print(f"genderswap: saved output at {output_path}")
+			image_bytes = output_path.read_bytes()
+		print("genderswap: sending photo to Telegram")
+		await bot.send_photo(chat_id=chat_id, photo=BytesIO(image_bytes))
+	except Exception as e:
+		print(f"Error in genderswap processing: {e}")
+		print(traceback.format_exc())
+		try:
+			await bot.send_message(chat_id=chat_id, text=f"Failed to process: {str(e)[:100]}")
+		except Exception:
+			pass
+
+
+async def genderswap(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+	chat = update.effective_chat
+	message = update.effective_message
+	replied_message = getattr(message, "reply_to_message", None)
+	img = None
+	
+	if replied_message and getattr(replied_message, "photo", None):
+		img = replied_message.photo[-1]
+	elif message and message.photo:
+		img = message.photo[-1]
+	
+	
+	if not chat:
+		return
+
+	if not img:
+		print("No photo found in the replied-to message or the command message.")
+		await update.message.reply_text("Reply to a photo with /genderswap, or send /genderswap with a photo.")
+		return
+	
+	await update.message.reply_text("Swapping for you perv... please wait..")
+	print(f"Starting gender swap for file_id: {img.file_id}")
+	# Schedule processing in background so handler returns immediately
+	asyncio.create_task(_genderswap_process(context.bot, chat.id, img))

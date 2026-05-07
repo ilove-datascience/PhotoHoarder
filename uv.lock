@@ -2,8 +2,24 @@ version = 1
 requires-python = "==3.12.*"
 resolution-markers = [
     "extra != 'extra-12-photohoarder-cpu' and extra == 'extra-12-photohoarder-gpu'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "sys_platform != 'darwin' and extra == 'extra-12-photohoarder-cpu' and extra != 'extra-12-photohoarder-gpu'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "sys_platform == 'darwin' and extra == 'extra-12-photohoarder-cpu' and extra != 'extra-12-photohoarder-gpu'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
+    "python_version < '0'",
     "extra != 'extra-12-photohoarder-cpu' and extra != 'extra-12-photohoarder-gpu'",
 ]
 conflicts = [[
@@ -35,7 +51,7 @@ version = "4.13.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "idna" },
-    { name = "typing-extensions" },
+    { name = "typing-extensions", marker = "python_full_version == '3.12.*'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/19/14/2c5dd9f512b66549ae92767a9c7b330ae88e1932ca57876909410251fe13/anyio-4.13.0.tar.gz", hash = "sha256:334b70e641fd2221c1505b3890c69882fe4a2df910cba14d97019b90b24439dc", size = 231622 }
 wheels = [
@@ -125,7 +141,7 @@ name = "cryptography"
 version = "46.0.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cffi", marker = "platform_python_implementation != 'PyPy' or (extra == 'extra-12-photohoarder-cpu' and extra == 'extra-12-photohoarder-gpu')" },
+    { name = "cffi", marker = "(python_full_version == '3.12.*' and platform_python_implementation != 'PyPy' and extra != 'extra-12-photohoarder-gpu') or (python_full_version == '3.12.*' and platform_python_implementation != 'PyPy' and extra != 'extra-12-photohoarder-cpu') or (extra == 'extra-12-photohoarder-cpu' and extra == 'extra-12-photohoarder-gpu')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/47/93/ac8f3d5ff04d54bc814e961a43ae5b0b146154c89c61b47bb07557679b18/cryptography-46.0.7.tar.gz", hash = "sha256:e4cfd68c5f3e0bfdad0d38e023239b96a2fe84146481852dffbcca442c245aa5", size = 750652 }
 wheels = [
@@ -157,6 +173,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/41/52/a8908dcb1a389a459a29008c29966c1d552588d4ae6d43f3a1a4512e0ebe/cryptography-46.0.7-cp38-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:a1529d614f44b863a7b480c6d000fe93b59acee9c82ffa027cfadc77521a9f5e", size = 4664256 },
     { url = "https://files.pythonhosted.org/packages/4b/fa/f0ab06238e899cc3fb332623f337a7364f36f4bb3f2534c2bb95a35b132c/cryptography-46.0.7-cp38-abi3-win32.whl", hash = "sha256:f247c8c1a1fb45e12586afbb436ef21ff1e80670b2861a90353d9b025583d246", size = 3013001 },
     { url = "https://files.pythonhosted.org/packages/d2/f1/00ce3bde3ca542d1acd8f8cfa38e446840945aa6363f9b74746394b14127/cryptography-46.0.7-cp38-abi3-win_amd64.whl", hash = "sha256:506c4ff91eff4f82bdac7633318a526b1d1309fc07ca76a3ad182cb5b686d6d3", size = 3472985 },
+]
+
+[[package]]
+name = "distro"
+version = "1.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fc/f8/98eea607f65de6527f8a2e8885fc8015d3e6f5775df186e443e0964a11c3/distro-1.9.0.tar.gz", hash = "sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed", size = 60722 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/12/b3/231ffd4ab1fc9d679809f356cebee130ac7daa00d6d6f3206dd4fd137e9e/distro-1.9.0-py3-none-any.whl", hash = "sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2", size = 20277 },
 ]
 
 [[package]]
@@ -383,6 +408,28 @@ wheels = [
 ]
 
 [[package]]
+name = "jiter"
+version = "0.14.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6e/c1/0cddc6eb17d4c53a99840953f95dd3accdc5cfc7a337b0e9b26476276be9/jiter-0.14.0.tar.gz", hash = "sha256:e8a39e66dac7153cf3f964a12aad515afa8d74938ec5cc0018adcdae5367c79e", size = 165725 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5a/68/7390a418f10897da93b158f2d5a8bd0bcd73a0f9ec3bb36917085bb759ef/jiter-0.14.0-cp312-cp312-macosx_10_12_x86_64.whl", hash = "sha256:2fb2ce3a7bc331256dfb14cefc34832366bb28a9aca81deaf43bbf2a5659e607", size = 316295 },
+    { url = "https://files.pythonhosted.org/packages/60/a0/5854ac00ff63551c52c6c89534ec6aba4b93474e7924d64e860b1c94165b/jiter-0.14.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:5252a7ca23785cef5d02d4ece6077a1b556a410c591b379f82091c3001e14844", size = 315898 },
+    { url = "https://files.pythonhosted.org/packages/41/a1/4f44832650a16b18e8391f1bf1d6ca4909bc738351826bcc198bba4357f4/jiter-0.14.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c409578cbd77c338975670ada777add4efd53379667edf0aceea730cabede6fb", size = 343730 },
+    { url = "https://files.pythonhosted.org/packages/48/64/a329e9d469f86307203594b1707e11ae51c3348d03bfd514a5f997870012/jiter-0.14.0-cp312-cp312-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:7ede4331a1899d604463369c730dbb961ffdc5312bc7f16c41c2896415b1304a", size = 370102 },
+    { url = "https://files.pythonhosted.org/packages/94/c1/5e3dfc59635aa4d4c7bd20a820ac1d09b8ed851568356802cf1c08edb3cf/jiter-0.14.0-cp312-cp312-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:92cd8b6025981a041f5310430310b55b25ca593972c16407af8837d3d7d2ca01", size = 461335 },
+    { url = "https://files.pythonhosted.org/packages/e3/1b/dd157009dbc058f7b00108f545ccb72a2d56461395c4fc7b9cfdccb00af4/jiter-0.14.0-cp312-cp312-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:351bf6eda4e3a7ceb876377840c702e9a3e4ecc4624dbfb2d6463c67ae52637d", size = 378536 },
+    { url = "https://files.pythonhosted.org/packages/91/78/256013667b7c10b8834f8e6e54cd3e562d4c6e34227a1596addccc05e38c/jiter-0.14.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c1dcfbeb93d9ecd9ca128bbf8910120367777973fa193fb9a39c31237d8df165", size = 353859 },
+    { url = "https://files.pythonhosted.org/packages/de/d9/137d65ade9093a409fe80955ce60b12bb753722c986467aeda47faf450ad/jiter-0.14.0-cp312-cp312-manylinux_2_31_riscv64.whl", hash = "sha256:ae039aaef8de3f8157ecc1fdd4d85043ac4f57538c245a0afaecb8321ec951c3", size = 357626 },
+    { url = "https://files.pythonhosted.org/packages/2e/48/76750835b87029342727c1a268bea8878ab988caf81ee4e7b880900eeb5a/jiter-0.14.0-cp312-cp312-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:7d9d51eb96c82a9652933bd769fe6de66877d6eb2b2440e281f2938c51b5643e", size = 393172 },
+    { url = "https://files.pythonhosted.org/packages/a6/60/456c4e81d5c8045279aefe60e9e483be08793828800a4e64add8fdde7f2a/jiter-0.14.0-cp312-cp312-musllinux_1_1_aarch64.whl", hash = "sha256:d824ca4148b705970bf4e120924a212fdfca9859a73e42bd7889a63a4ea6bb98", size = 520300 },
+    { url = "https://files.pythonhosted.org/packages/a8/9f/2020e0984c235f678dced38fe4eec3058cf528e6af36ebf969b410305941/jiter-0.14.0-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:ff3a6465b3a0f54b1a430f45c3c0ba7d61ceb45cbc3e33f9e1a7f638d690baf3", size = 553059 },
+    { url = "https://files.pythonhosted.org/packages/ef/32/e2d298e1a22a4bbe6062136d1c7192db7dba003a6975e51d9a9eecabc4c2/jiter-0.14.0-cp312-cp312-win32.whl", hash = "sha256:5dec7c0a3e98d2a3f8a2e67382d0d7c3ac60c69103a4b271da889b4e8bb1e129", size = 206030 },
+    { url = "https://files.pythonhosted.org/packages/36/ac/96369141b3d8a4a8e4590e983085efe1c436f35c0cda940dd76d942e3e40/jiter-0.14.0-cp312-cp312-win_amd64.whl", hash = "sha256:fc7e37b4b8bc7e80a63ad6cfa5fc11fab27dbfea4cc4ae644b1ab3f273dc348f", size = 201603 },
+    { url = "https://files.pythonhosted.org/packages/01/c3/75d847f264647017d7e3052bbcc8b1e24b95fa139c320c5f5066fa7a0bdd/jiter-0.14.0-cp312-cp312-win_arm64.whl", hash = "sha256:ee4a72f12847ef29b072aee9ad5474041ab2924106bdca9fcf5d7d965853e057", size = 191525 },
+]
+
+[[package]]
 name = "markdown-it-py"
 version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -602,6 +649,25 @@ wheels = [
 ]
 
 [[package]]
+name = "openai"
+version = "2.34.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "distro" },
+    { name = "httpx" },
+    { name = "jiter" },
+    { name = "pydantic" },
+    { name = "sniffio" },
+    { name = "tqdm" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7b/89/f1e78f5f828f4e97a6ebca8f45c6b35667da12b074ac490dc8362b882279/openai-2.34.0.tar.gz", hash = "sha256:828b4efcbb126352c2b5eb97d33ae890c92a71ab72511aefc1b7fe64aeccb07b", size = 759556 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f2/40/f090499f10514515081d09cb9da09f25b821eb20497e9423afe4f07b4ecf/openai-2.34.0-py3-none-any.whl", hash = "sha256:c996a71b1a210f3569844572ad4c609307e978515fb76877cf449b72596e549e", size = 1316535 },
+]
+
+[[package]]
 name = "packaging"
 version = "26.1"
 source = { registry = "https://pypi.org/simple" }
@@ -620,6 +686,7 @@ dependencies = [
     { name = "google-auth" },
     { name = "google-auth-oauthlib" },
     { name = "mysql-connector-python" },
+    { name = "openai" },
     { name = "pip" },
     { name = "python-dotenv" },
     { name = "python-telegram-bot" },
@@ -648,6 +715,7 @@ requires-dist = [
     { name = "google-auth", specifier = ">=2.49.2" },
     { name = "google-auth-oauthlib", specifier = ">=1.3.1" },
     { name = "mysql-connector-python", specifier = ">=9.6.0" },
+    { name = "openai", specifier = ">=2.34.0" },
     { name = "pip", specifier = ">=26.0.1" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "python-telegram-bot", specifier = ">=22.7" },
@@ -926,12 +994,21 @@ wheels = [
 ]
 
 [[package]]
+name = "sniffio"
+version = "1.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a2/87/a6771e1546d97e7e041b6ae58d80074f81b7d5121207425c964ddf5cfdbd/sniffio-1.3.1.tar.gz", hash = "sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc", size = 20372 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl", hash = "sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2", size = 10235 },
+]
+
+[[package]]
 name = "starlette"
 version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
-    { name = "typing-extensions" },
+    { name = "typing-extensions", marker = "(python_full_version == '3.12.*' and extra != 'extra-12-photohoarder-gpu') or (python_full_version == '3.12.*' and extra != 'extra-12-photohoarder-cpu') or (extra == 'extra-12-photohoarder-cpu' and extra == 'extra-12-photohoarder-gpu')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/81/69/17425771797c36cded50b7fe44e850315d039f28b15901ab44839e70b593/starlette-1.0.0.tar.gz", hash = "sha256:6a4beaf1f81bb472fd19ea9b918b50dc3a77a6f2e190a12954b25e6ed5eea149", size = 2655289 }
 wheels = [
@@ -1006,9 +1083,9 @@ dependencies = [
     { name = "nvidia-cusparse-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-12-photohoarder-gpu') or (platform_machine != 'x86_64' and extra == 'extra-12-photohoarder-cpu' and extra == 'extra-12-photohoarder-gpu') or (sys_platform != 'linux' and extra == 'extra-12-photohoarder-cpu' and extra == 'extra-12-photohoarder-gpu')" },
     { name = "nvidia-nccl-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-12-photohoarder-gpu') or (platform_machine != 'x86_64' and extra == 'extra-12-photohoarder-cpu' and extra == 'extra-12-photohoarder-gpu') or (sys_platform != 'linux' and extra == 'extra-12-photohoarder-cpu' and extra == 'extra-12-photohoarder-gpu')" },
     { name = "nvidia-nvtx-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-12-photohoarder-gpu') or (platform_machine != 'x86_64' and extra == 'extra-12-photohoarder-cpu' and extra == 'extra-12-photohoarder-gpu') or (sys_platform != 'linux' and extra == 'extra-12-photohoarder-cpu' and extra == 'extra-12-photohoarder-gpu')" },
-    { name = "setuptools", marker = "extra == 'extra-12-photohoarder-gpu'" },
-    { name = "sympy", version = "1.13.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-12-photohoarder-gpu'" },
-    { name = "triton", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-12-photohoarder-gpu') or (platform_machine != 'x86_64' and extra == 'extra-12-photohoarder-cpu' and extra == 'extra-12-photohoarder-gpu') or (sys_platform != 'linux' and extra == 'extra-12-photohoarder-cpu' and extra == 'extra-12-photohoarder-gpu')" },
+    { name = "setuptools", marker = "(python_full_version == '3.12.*' and extra == 'extra-12-photohoarder-gpu') or (extra == 'extra-12-photohoarder-cpu' and extra == 'extra-12-photohoarder-gpu')" },
+    { name = "sympy", version = "1.13.1", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version == '3.12.*' and extra == 'extra-12-photohoarder-gpu') or (extra == 'extra-12-photohoarder-cpu' and extra == 'extra-12-photohoarder-gpu')" },
+    { name = "triton", marker = "(python_full_version == '3.12.*' and platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'extra-12-photohoarder-gpu') or (extra == 'extra-12-photohoarder-cpu' and extra == 'extra-12-photohoarder-gpu')" },
     { name = "typing-extensions", marker = "extra == 'extra-12-photohoarder-gpu'" },
 ]
 wheels = [

@@ -16,7 +16,7 @@ from googleapiclient.discovery import build
 from telegram import Bot, Update, ForceReply, InlineKeyboardMarkup, InlineKeyboardButton, PhotoSize
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
-from src.utils.functions import getphotos, health_check
+from src.utils.functions import getphotos, health_check, genderswap
 from src.utils import google_utils
 from src.utils.common import start, _get_db_connection, store_admin_creds, ADMIN_USER
 
@@ -296,6 +296,7 @@ def main():
 	app.add_handler(CommandHandler("health", health_check))
 	app.add_handler(CommandHandler("lasterror", last_error_cmd, filters=filters.User(ADMIN_USER) if ADMIN_USER else filters.ALL))
 	app.add_handler(CommandHandler("debug", debug_switch,filters=filters.User(ADMIN_USER) if ADMIN_USER else filters.ALL))
+	app.add_handler(CommandHandler("genderswap", genderswap))
 
 	# register a global error handler so uncaught exceptions are surfaced and handled
 	app.add_error_handler(error_handler)
