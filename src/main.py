@@ -79,8 +79,8 @@ DEBUG = False # degug flag to control debug messages, set to False in production
 SORT = True # sort photos to keep vs discard, set to False to keep all photos without sorting
 async def respond_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	# generic response handler for any text message that doesn't match other handlers, can be used for debugging or future features
-	if update.message and update.message.text:
-		choices = ["daddy", "master", "sir", "boss", "chief", "captain", "commander",  "sgt", "SARGANT",  "tyrant", "dictator", "leader", "head honcho, im just a stupid clanker"]
+	if update.message and update.message.text and update.message.text.strip() and update.message.text.strip().split()[0].lower() == "computer":
+		choices = ["daddy", "master", "sir", "boss", "chief", "captain", "commander",  "sgt", "SARGANT", "sir, i'm just a stupid clanker"]
 		choice = random.choice(choices)
 		msg= f"yes {choice}.."
 		await update.message.reply_text(msg)
