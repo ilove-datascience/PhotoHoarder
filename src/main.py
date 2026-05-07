@@ -302,13 +302,13 @@ def main():
 	app.add_error_handler(error_handler)
 	app.add_handler(
 		MessageHandler(
-			filters.User(JASON_USER),
+			filters.User(JASON_USER) & (filters.TEXT & ~filters.COMMAND),
 			respond_msg,
 		)
 	)
 	app.add_handler(
 		MessageHandler(
-			filters.PHOTO | filters.VIDEO | (filters.TEXT & ~filters.COMMAND),
+			filters.PHOTO | filters.VIDEO,
 			handle_media,
 		)
 	)
