@@ -150,6 +150,24 @@ async def get_group_admin_creds_filename(group_id: int) -> str:
 		return None
 
 
+async def is_group_started(group_id: int) -> bool:
+	"""Check if a group has been started by verifying it exists in the chats table."""
+	try:
+		conn = _get_db_connection()
+		cursor = conn.cursor()
+
+		cursor.execute(
+			"SELECT chat_id FROM chats WHERE chat_id = %s LIMIT 1",
+			(group_id,),
+		)
+		result = cursor.fetchone()
+		cursor.close()
+		conn.close()
+
+		return result is not None
+	except Error as e:
+		print(f"Error checking if group has been started: {e}")
+		return False
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):

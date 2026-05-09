@@ -14,11 +14,11 @@ from fastapi import FastAPI, HTTPException, Request
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from telegram import Bot, Update, ForceReply, InlineKeyboardMarkup, InlineKeyboardButton, PhotoSize
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters, BaseFilter
 
 from src.utils.functions import getphotos, health_check, genderswap
 from src.utils import google_utils
-from src.utils.common import start, _get_db_connection, store_admin_creds, ADMIN_USER
+from src.utils.common import start, _get_db_connection, store_admin_creds, ADMIN_USER, is_group_started
 
 logger = logging.getLogger(__name__)
 IS_RAILWAY = os.getenv("RAILWAY_ENVIRONMENT") is not None
@@ -77,6 +77,23 @@ WEB_SERVER_STARTED = False
 import random
 DEBUG = False # degug flag to control debug messages, set to False in production
 SORT = True # sort photos to keep vs discard, set to False to keep all photos without sorting
+
+
+class GroupStartedFilter(BaseFilter):
+	"""Filter that checks if a group has been started (exists in chats table)."""
+	async def filter(self, update: Update) -> bool:
+		if not update.effective_chat:
+			return False
+		group_id = update.effective_chat.id
+		result = await is_group_started(group_id)
+		if not result:
+			try:
+				await update.effective_chat.send_message("This group has not been started yet. Please use /start command first.")
+			except Exception as e:
+				print(f"Failed to send group started reminder: {e}")
+		return result
+
+
 async def respond_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
 	# generic response handler for any text message that doesn't match other handlers, can be used for debugging or future features
 	if update.message and update.message.text and update.message.text.strip() and update.message.text.strip().split()[0].lower() == "computer":
@@ -291,24 +308,25 @@ def main():
 
 	ensure_required_dirs()
 	_start_web_server()
+	group_started_filter = GroupStartedFilter()
 	app = Application.builder().token(TOKEN).build()
 	app.add_handler(CommandHandler("start", start))
-	app.add_handler(CommandHandler("health", health_check))
-	app.add_handler(CommandHandler("lasterror", last_error_cmd, filters=filters.User(ADMIN_USER) if ADMIN_USER else filters.ALL))
-	app.add_handler(CommandHandler("debug", debug_switch,filters=filters.User(ADMIN_USER) if ADMIN_USER else filters.ALL))
-	app.add_handler(CommandHandler("genderswap", genderswap))
+	app.add_handler(CommandHandler("health", health_check, filters=group_started_filter))
+	app.add_handler(CommandHandler("lasterror", last_error_cmd, filters=(filters.User(ADMIN_USER) if ADMIN_USER else filters.ALL) & group_started_filter))
+	app.add_handler(CommandHandler("debug", debug_switch, filters=(filters.User(ADMIN_USER) if ADMIN_USER else filters.ALL) & group_started_filter))
+	app.add_handler(CommandHandler("genderswap", genderswap, filters=group_started_filter))
 
 	# register a global error handler so uncaught exceptions are surfaced and handled
 	app.add_error_handler(error_handler)
 	app.add_handler(
 		MessageHandler(
-			filters.User(JASON_USER) & (filters.TEXT & ~filters.COMMAND),
+			(filters.User(JASON_USER) & (filters.TEXT & ~filters.COMMAND)) if JASON_USER else filters.ALL,
 			respond_msg,
 		)
 	)
 	app.add_handler(
 		MessageHandler(
-			filters.PHOTO | filters.VIDEO,
+			(filters.PHOTO | filters.VIDEO) & group_started_filter,
 			handle_media,
 		)
 	)
