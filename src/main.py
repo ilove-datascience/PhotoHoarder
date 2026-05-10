@@ -14,11 +14,12 @@ from fastapi import FastAPI, HTTPException, Request
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from telegram import Bot, Update, ForceReply, InlineKeyboardMarkup, InlineKeyboardButton, PhotoSize
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters, BaseFilter
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext.filters import BaseFilter
 
 from src.utils.functions import getphotos, health_check, genderswap
 from src.utils import google_utils
-from src.utils.common import start, _get_db_connection, store_admin_creds, ADMIN_USER, is_group_started
+from src.utils.common import start, _get_db_connection, store_admin_creds, ADMIN_USER, is_group_started_sync
 
 logger = logging.getLogger(__name__)
 IS_RAILWAY = os.getenv("RAILWAY_ENVIRONMENT") is not None
@@ -81,17 +82,11 @@ SORT = True # sort photos to keep vs discard, set to False to keep all photos wi
 
 class GroupStartedFilter(BaseFilter):
 	"""Filter that checks if a group has been started (exists in chats table)."""
-	async def filter(self, update: Update) -> bool:
+	def filter(self, update: Update) -> bool:
 		if not update.effective_chat:
 			return False
 		group_id = update.effective_chat.id
-		result = await is_group_started(group_id)
-		if not result:
-			try:
-				await update.effective_chat.send_message("This group has not been started yet. Please use /start command first.")
-			except Exception as e:
-				print(f"Failed to send group started reminder: {e}")
-		return result
+		return is_group_started_sync(group_id)
 
 
 async def respond_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -150,7 +150,8 @@ async def get_group_admin_creds_filename(group_id: int) -> str:
 		return None
 
 
-async def is_group_started(group_id: int) -> bool:
+
+def is_group_started_sync(group_id: int) -> bool:
 	"""Check if a group has been started by verifying it exists in the chats table."""
 	try:
 		conn = _get_db_connection()
@@ -168,6 +169,11 @@ async def is_group_started(group_id: int) -> bool:
 	except Error as e:
 		print(f"Error checking if group has been started: {e}")
 		return False
+
+
+async def is_group_started(group_id: int) -> bool:
+	"""Async wrapper for checking whether a group has been started."""
+	return is_group_started_sync(group_id)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
